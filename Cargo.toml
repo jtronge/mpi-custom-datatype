@@ -1,13 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "ucx2-sys",
-    "safe-mpi",
-    "msgpk-test",
-    "iovec",
-    "benchmarks",
-    "datatypes",
-    "flat",
-    "flat-derive",
-    "mpirs",
+    "mpicd",
+    "mpicd-ucx-sys",
+    "mpicd-benchmarks",
 ]
