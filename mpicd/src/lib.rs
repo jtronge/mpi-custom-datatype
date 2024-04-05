@@ -29,6 +29,7 @@ mod request;
 // pub use request::{Request, RequestStatus};
 mod datatype;
 mod exchange;
+mod pmi;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Error {
@@ -196,6 +197,9 @@ pub fn init() -> Result<Context> {
     env_logger::init();
 
     unsafe {
+        // Attempt to initialize the PMI.
+        pmi::init();
+
         let mut context = MaybeUninit::<ucp_context_h>::uninit();
         let params = ucp_params_t {
             field_mask: UCP_PARAM_FIELD_FEATURES.into(),

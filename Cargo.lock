@@ -437,6 +437,7 @@ version = "0.1.0"
 dependencies = [
  "env_logger",
  "log",
+ "mpicd-pmix-sys",
  "mpicd-ucx-sys",
  "nalgebra",
  "nix",
@@ -452,6 +453,14 @@ dependencies = [
  "mpi",
  "serde",
  "serde_yaml",
+]
+
+[[package]]
+name = "mpicd-pmix-sys"
+version = "0.0.1"
+dependencies = [
+ "bindgen 0.69.4",
+ "pkg-config",
 ]
 
 [[package]]

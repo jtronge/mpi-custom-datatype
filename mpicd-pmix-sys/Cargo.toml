@@ -1,9 +1,8 @@
 [package]
-name = "mpicd-ucx-sys"
-version = "0.1.0"
+name = "mpicd-pmix-sys"
+version = "0.0.1"
 edition = "2021"
 
 [build-dependencies]
 pkg-config = "0.3.30"
 bindgen = "0.69.4"
-cc = "1.0.78"

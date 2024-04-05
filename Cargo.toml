@@ -3,5 +3,6 @@ resolver = "2"
 members = [
     "mpicd",
     "mpicd-ucx-sys",
+    "mpicd-pmix-sys",
     "mpicd-benchmarks",
 ]
