@@ -141,6 +141,11 @@ impl Communicator for Context {
             }
 
             for (i, req) in requests.iter().enumerate() {
+                match statuses[i] {
+                    RequestStatus::InProgress => (),
+                    _ => continue,
+                }
+
                 match handle.request_status(*req) {
                     RequestStatus::InProgress => (),
                     status => {

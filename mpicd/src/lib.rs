@@ -21,7 +21,7 @@ pub type Tag = ucp_tag_t;
 
 pub mod communicator;
 mod context;
-use context::Context;
+pub use context::Context;
 mod util;
 use util::wait_loop;
 mod callbacks;

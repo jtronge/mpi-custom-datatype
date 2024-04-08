@@ -15,6 +15,7 @@ fn main() {
                 reqs.push(ctx.irecv(row, 1, 0).unwrap());
             }
             let _ = ctx.waitall(&reqs);
+            println!("data[0] = {:?}", &data[0][..10]);
         }
     } else {
         unsafe {

@@ -1,0 +1,6 @@
+[submodule "deps/ucx"]
+	path = deps/ucx
+	url = git@github.com:openucx/ucx.git
+[submodule "deps/openpmix"]
+	path = deps/openpmix
+	url = git@github.com:openpmix/openpmix.git

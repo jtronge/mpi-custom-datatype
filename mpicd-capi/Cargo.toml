@@ -1,0 +1,11 @@
+[package]
+name = "mpicd-capi"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+mpicd = { path = "../mpicd" }
+lazy_static = "1.4.0"

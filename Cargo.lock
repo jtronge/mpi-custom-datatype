@@ -456,6 +456,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mpicd-capi"
+version = "0.0.1"
+dependencies = [
+ "lazy_static",
+ "mpicd",
+]
+
+[[package]]
 name = "mpicd-pmix-sys"
 version = "0.0.1"
 dependencies = [
