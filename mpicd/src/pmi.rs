@@ -9,7 +9,7 @@ use mpicd_pmix_sys::{
 };
 use log::info;
 
-trait PMIXType {
+pub trait PMIXType {
     unsafe fn unload(value: *mut pmix_value_t) -> Self;
     unsafe fn load(&mut self) -> pmix_value_t;
 }
