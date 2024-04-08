@@ -1,8 +1,8 @@
 //! Experimental Rust API for custom datatype serialization.
-use std::ffi::{c_char, c_int, c_void};
-use std::sync::Once;
-use mpicd::communicator::Communicator;
 use log::info;
+use mpicd::communicator::Communicator;
+use std::ffi::{c_char, c_int};
+use std::sync::Once;
 
 mod consts;
 mod datatype;

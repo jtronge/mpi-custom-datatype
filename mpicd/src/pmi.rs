@@ -1,13 +1,13 @@
-use std::mem::MaybeUninit;
-use std::ffi::{c_void, c_char, CStr, CString};
-use mpicd_pmix_sys::{
-    PMIx_Initialized, PMIx_Init, PMIx_Finalize, PMIx_Put, PMIx_Get, PMIx_Commit, PMIx_Value_unload,
-    PMIx_Fence, PMIx_Error_string, pmix_proc_t, pmix_status_t, pmix_value_t, pmix_value__bindgen_ty_1,
-    pmix_byte_object_t, PMIX_SUCCESS, PMIX_GLOBAL, PMIX_LOCAL_RANK, PMIX_NODE_RANK,
-    PMIX_JOB_SIZE, PMIX_UNIV_SIZE, PMIX_JOB_NUM_APPS,
-    PMIX_LOCAL_SIZE, PMIX_UINT16, PMIX_UINT32, PMIX_BYTE_OBJECT,
-};
 use log::info;
+use mpicd_pmix_sys::{
+    pmix_byte_object_t, pmix_proc_t, pmix_status_t, pmix_value__bindgen_ty_1, pmix_value_t,
+    PMIx_Commit, PMIx_Error_string, PMIx_Fence, PMIx_Finalize, PMIx_Get, PMIx_Init,
+    PMIx_Initialized, PMIx_Put, PMIx_Value_unload, PMIX_BYTE_OBJECT, PMIX_GLOBAL,
+    PMIX_LOCAL_RANK, PMIX_NODE_RANK,
+    PMIX_SUCCESS, PMIX_UINT16, PMIX_UINT32, PMIX_UNIV_SIZE,
+};
+use std::ffi::{c_char, c_void, CStr, CString};
+use std::mem::MaybeUninit;
 
 pub trait PMIXType {
     unsafe fn unload(value: *mut pmix_value_t) -> Self;
@@ -54,8 +54,8 @@ impl PMIXType for Vec<u8> {
                 bo: pmix_byte_object_t {
                     bytes: self.as_mut_ptr() as *mut _,
                     size: self.len(),
-                }
-            }
+                },
+            },
         }
     }
 }
@@ -115,10 +115,7 @@ impl PMI {
             // Just assume 2 for now
             let size = 2;
 
-            PMI {
-                proc,
-                size,
-            }
+            PMI { proc, size }
         }
     }
 

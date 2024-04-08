@@ -21,7 +21,7 @@ fn main() {
         unsafe {
             let data: Vec<u32> = (0..128).collect();
             let mut reqs = vec![];
-            for i in 0..128 {
+            for _ in 0..128 {
                 reqs.push(ctx.isend(&data, 0, 0).unwrap());
             }
             let _ = ctx.waitall(&reqs);

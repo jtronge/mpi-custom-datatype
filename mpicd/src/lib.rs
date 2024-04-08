@@ -1,4 +1,5 @@
-use log::{debug, error, info};
+//! mpicd library code and entry points.
+use log::{error, info};
 use mpicd_ucx_sys::{
     rust_ucp_init, rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status, ucp_address_t,
     ucp_cleanup, ucp_context_h, ucp_ep_close_nb, ucp_ep_create, ucp_ep_h, ucp_ep_params_t,
@@ -7,14 +8,11 @@ use mpicd_ucx_sys::{
     ucs_status_string, ucs_status_t, UCP_EP_CLOSE_MODE_FORCE, UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE,
     UCP_EP_PARAM_FIELD_REMOTE_ADDRESS, UCP_ERR_HANDLING_MODE_PEER, UCP_FEATURE_STREAM,
     UCP_FEATURE_TAG, UCP_PARAM_FIELD_FEATURES, UCP_WORKER_PARAM_FIELD_THREAD_MODE, UCS_OK,
-    UCS_THREAD_MODE_SINGLE,
+    UCS_INPROGRESS, UCS_THREAD_MODE_SINGLE,
 };
-use serde_json;
 use std::cell::RefCell;
 use std::ffi::{c_void, CStr};
-use std::io::Write;
 use std::mem::MaybeUninit;
-use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::rc::Rc;
 
 pub type Tag = ucp_tag_t;
@@ -25,10 +23,7 @@ pub use context::Context;
 mod util;
 use util::wait_loop;
 mod callbacks;
-mod request;
-// pub use request::{Request, RequestStatus};
 mod datatype;
-mod exchange;
 mod pmi;
 use pmi::PMI;
 
@@ -46,41 +41,23 @@ pub enum Error {
     /// Address exchange failed.
     WorkerAddressFailure(ucs_status_t),
 
-    /// Request failed.
-    FailedRequest(ucs_status_t),
-
     /// Waiting for a worker failed.
     WorkerWait(ucs_status_t),
 
-    /// Error occurred during deserialization.
-    DeserializeError,
-
-    /// Error occurred during serialization.
-    SerializeError,
+    /// A request failed.
+    FailedRequest(ucs_status_t),
 
     /// Timeout occured while waiting on a request.
     RequestTimeout,
 
     /// Internal error occurred.
     InternalError,
-
-    /// Invalid type received in a message.
-    MessageTypeMismatch,
-
-    /// Invalid count of elements received in a message (no partial receives allowed).
-    MessageCountMismatch,
 }
-
-/// Immutable iovec.
-pub struct Iov(pub *const u8, pub usize);
-
-/// Mutable iovec.
-pub struct MutIov(pub *mut u8, pub usize);
 
 /// Handle containing the internal UCP context data and other code.
 pub(crate) struct Handle {
     /// PMI Context.
-    pub pmi: PMI,
+    pub _pmi: PMI,
 
     /// UCP context.
     pub context: ucp_context_h,
@@ -133,10 +110,12 @@ impl Handle {
         } else {
             let status = rust_ucs_ptr_status(req.request);
             if !*(*req.complete.as_ref().unwrap()) {
-                match status {
-                    UCS_OK => RequestStatus::Complete,
-                    UCS_INPROGRESS => RequestStatus::InProgress,
-                    err => RequestStatus::Error(status_to_string(err)),
+                if status == UCS_OK {
+                    RequestStatus::Complete
+                } else if status == UCS_INPROGRESS {
+                    RequestStatus::InProgress
+                } else {
+                    RequestStatus::Error(status_to_string(status))
                 }
             } else {
                 RequestStatus::Complete
@@ -221,7 +200,11 @@ pub fn init() -> Result<Context> {
 
             // Exchange worker addresses.
             pmi.put("UCP_WORKER_ADDR", worker_addr.clone());
-            info!("(rank = {}) Putting address: {:?}", rank, &worker_addr[..10]);
+            info!(
+                "(rank = {}) Putting address: {:?}",
+                rank,
+                &worker_addr[..10]
+            );
             pmi.fence();
             // let addrs = exchange::address_exchange(rank as usize, &conn_list, &worker_addr);
             let mut endpoints = vec![];
@@ -230,13 +213,17 @@ pub fn init() -> Result<Context> {
                     endpoints.push(create_endpoint(worker, &worker_addr));
                 } else {
                     let addr: Vec<u8> = pmi.get(ep_rank as u32, "UCP_WORKER_ADDR");
-                    info!("(rank = {}) Got address for other proc: {:?}", rank, &addr[..10]);
+                    info!(
+                        "(rank = {}) Got address for other proc: {:?}",
+                        rank,
+                        &addr[..10]
+                    );
                     endpoints.push(create_endpoint(worker, &addr));
                 }
             }
 
             Ok(Context::new(Rc::new(RefCell::new(Handle {
-                pmi,
+                _pmi: pmi,
                 context,
                 worker,
                 size: size as usize,
@@ -245,15 +232,6 @@ pub fn init() -> Result<Context> {
                 requests: vec![],
                 free_requests: vec![],
             }))))
-            /*
-                        let other_addr = exchange_addrs(context, worker, server, sockaddr)?;
-                        Ok(Context::new(Rc::new(RefCell::new(Handle {
-                            context,
-                            worker,
-                            other_addr,
-                            endpoint: None,
-                        }))))
-            */
         }
     }
 }
@@ -290,6 +268,7 @@ unsafe fn get_worker_address(worker: ucp_worker_h) -> Result<Vec<u8>> {
     let mut buffer = Vec::with_capacity(len);
     std::ptr::copy(addr as *const u8, buffer.as_mut_ptr(), len);
     buffer.set_len(len);
+    ucp_worker_release_address(worker, addr);
     Ok(buffer)
 }
 

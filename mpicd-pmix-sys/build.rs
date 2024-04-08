@@ -34,10 +34,10 @@ fn main() {
         .derive_default(true)
         .generate()
         .expect("failed to generate bindings");
-    let out_dir = std::env::var("OUT_DIR")
-        .expect("missing $OUT_DIR env variable");
+    let out_dir = std::env::var("OUT_DIR").expect("missing $OUT_DIR env variable");
     let mut path = PathBuf::from(out_dir);
     path.push("bindings.rs");
-    bindings.write_to_file(path)
+    bindings
+        .write_to_file(path)
         .expect("failed to write bindings");
 }

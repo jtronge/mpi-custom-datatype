@@ -2,27 +2,17 @@
 use crate::{
     callbacks,
     communicator::{self, Communicator, Message, MessageMut},
-    status_to_string, Error, Handle, Iov, MutIov, Request, RequestStatus, Result, Tag,
+    Handle, Request, RequestStatus,
 };
 use mpicd_ucx_sys::{
-    rust_ucp_dt_make_contig, ucp_ep_create, ucp_ep_h, ucp_ep_params_t, ucp_request_param_t,
-    ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx, ucp_tag_send_nbx, ucp_worker_h,
-    ucp_worker_progress, UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE, UCP_EP_PARAM_FIELD_REMOTE_ADDRESS,
-    UCP_ERR_HANDLING_MODE_PEER, UCP_OP_ATTR_FIELD_CALLBACK, UCP_OP_ATTR_FIELD_DATATYPE,
-    UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL, UCS_OK,
+    rust_ucp_dt_make_contig, ucp_request_param_t,
+    ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx, ucp_tag_send_nbx,
+    ucp_worker_progress, UCP_OP_ATTR_FIELD_CALLBACK, UCP_OP_ATTR_FIELD_DATATYPE,
+    UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
+
 };
 use std::cell::RefCell;
-use std::mem::MaybeUninit;
 use std::rc::Rc;
-
-/// Data reference type for send request.
-pub enum Data<'a> {
-    /// Contiguous data contained all in one stream.
-    Contiguous(&'a [u8]),
-
-    /// Data broken up into chunks of references.
-    Chunked(&'a [&'a [u8]]),
-}
 
 pub struct Context {
     /// Handle with ucx info.
@@ -168,12 +158,4 @@ fn encode_tag(rank: i32, tag: i32) -> u64 {
     let rank = rank as u64;
     let tag = tag as u64;
     rank << 32 & tag
-}
-
-/// Decode a tag from a 64-bit UCX tag into (rank, tag) form.
-#[inline]
-fn decode_tag(tag: u64) -> (i32, i32) {
-    let rank = tag >> 32;
-    let mpi_tag = tag & 0xFFFFFFFF;
-    (rank as i32, mpi_tag as i32)
 }
