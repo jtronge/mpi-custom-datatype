@@ -1,8 +1,8 @@
 use std::mem::MaybeUninit;
-use std::ffi::{c_void, c_char, CString};
+use std::ffi::{c_void, c_char, CStr, CString};
 use mpicd_pmix_sys::{
     PMIx_Initialized, PMIx_Init, PMIx_Finalize, PMIx_Put, PMIx_Get, PMIx_Commit, PMIx_Value_unload,
-    PMIx_Fence, pmix_proc_t, pmix_value_t, pmix_value__bindgen_ty_1,
+    PMIx_Fence, PMIx_Error_string, pmix_proc_t, pmix_status_t, pmix_value_t, pmix_value__bindgen_ty_1,
     pmix_byte_object_t, PMIX_SUCCESS, PMIX_GLOBAL, PMIX_LOCAL_RANK, PMIX_NODE_RANK,
     PMIX_JOB_SIZE, PMIX_UNIV_SIZE, PMIX_JOB_NUM_APPS,
     PMIX_LOCAL_SIZE, PMIX_UINT16, PMIX_UINT32, PMIX_BYTE_OBJECT,
@@ -64,7 +64,7 @@ unsafe fn get<T: PMIXType>(proc: pmix_proc_t, key: *const c_char) -> T {
     let mut value = MaybeUninit::<*mut pmix_value_t>::uninit();
     let ret = PMIx_Get(&proc, key, std::ptr::null_mut(), 0, value.as_mut_ptr());
     if ret != (PMIX_SUCCESS as i32) {
-        panic!("PMIx_Get failed");
+        panic!("PMIx_Get failed: {}", pmix_status_to_string(ret));
     }
     let value = value.assume_init();
     if value == std::ptr::null_mut() {
@@ -75,7 +75,6 @@ unsafe fn get<T: PMIXType>(proc: pmix_proc_t, key: *const c_char) -> T {
 
 pub struct PMI {
     proc: pmix_proc_t,
-    rank: u32,
     size: u32,
 }
 
@@ -108,20 +107,24 @@ impl PMI {
             let univ_size = get::<u32>(proc, PMIX_UNIV_SIZE.as_ptr() as *const _);
             info!("univ_size = {}", univ_size);
 
-            let local_size = get::<u32>(proc, PMIX_LOCAL_SIZE.as_ptr() as *const _);
-            info!("local_size = {}", local_size);
+            // let local_size = get::<u32>(proc, PMIX_LOCAL_SIZE.as_ptr() as *const _);
+            // info!("local_size = {}", local_size);
+
+            // let job_size = get::<u32>(proc, PMIX_JOB_SIZE.as_ptr() as *const _);
+            // info!("job_size = {}", job_size);
+            // Just assume 2 for now
+            let size = 2;
 
             PMI {
                 proc,
-                rank: (local_rank * node_rank) as u32,
-                size: local_size,
+                size,
             }
         }
     }
 
     #[inline]
     pub fn rank(&self) -> u32 {
-        self.rank
+        self.proc.rank
     }
 
     #[inline]
@@ -179,4 +182,13 @@ impl Drop for PMI {
             }
         }
     }
+}
+
+/// Convert a pmix_status_t to a string value. The caller must ensure this is a
+/// valid status (which should be the case if returned from a pmix call).
+unsafe fn pmix_status_to_string(status: pmix_status_t) -> String {
+    let cstr = CStr::from_ptr(PMIx_Error_string(status));
+    cstr.to_str()
+        .expect("failed to convert PMIx status to string")
+        .to_string()
 }

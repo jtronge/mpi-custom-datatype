@@ -224,6 +224,7 @@ pub fn init() -> Result<Context> {
 
             // Exchange worker addresses.
             pmi.put("UCP_WORKER_ADDR", worker_addr.clone());
+            info!("(rank = {}) Putting address: {:?}", rank, &worker_addr[..10]);
             pmi.fence();
             // let addrs = exchange::address_exchange(rank as usize, &conn_list, &worker_addr);
             let mut endpoints = vec![];
@@ -232,6 +233,7 @@ pub fn init() -> Result<Context> {
                     endpoints.push(create_endpoint(worker, &worker_addr));
                 } else {
                     let addr: Vec<u8> = pmi.get(ep_rank as u32, "UCP_WORKER_ADDR");
+                    info!("(rank = {}) Got address for other proc: {:?}", rank, &addr[..10]);
                     endpoints.push(create_endpoint(worker, &addr));
                 }
             }
