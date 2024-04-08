@@ -197,9 +197,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Initialize the safe mpi context.
 pub fn init() -> Result<Context> {
-    // Initialize logging.
-    env_logger::init();
-
     unsafe {
         // Attempt to initialize the PMI.
         let pmi = PMI::init();
