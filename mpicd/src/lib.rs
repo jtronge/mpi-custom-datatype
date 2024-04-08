@@ -30,6 +30,7 @@ mod request;
 mod datatype;
 mod exchange;
 mod pmi;
+use pmi::PMI;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Error {
@@ -78,6 +79,9 @@ pub struct MutIov(pub *mut u8, pub usize);
 
 /// Handle containing the internal UCP context data and other code.
 pub(crate) struct Handle {
+    /// PMI Context.
+    pub pmi: PMI,
+
     /// UCP context.
     pub context: ucp_context_h,
 
@@ -198,7 +202,7 @@ pub fn init() -> Result<Context> {
 
     unsafe {
         // Attempt to initialize the PMI.
-        pmi::init();
+        let pmi = PMI::init();
 
         let mut context = MaybeUninit::<ucp_context_h>::uninit();
         let params = ucp_params_t {
@@ -212,32 +216,32 @@ pub fn init() -> Result<Context> {
             Err(Error::InitFailure)
         } else {
             let context = context.assume_init();
-            let conn_list: Vec<String> = std::env::var("MPIRS_CONN_LIST")
-                .expect("missing MPIRS_RANK in environment required for MPI initialization")
-                .split(',')
-                .map(|s| s.to_string())
-                .collect();
-            let size = conn_list.len();
-            let rank: usize = std::env::var("MPIRS_RANK")
-                .expect("missing MPIRS_RANK in environment required for MPI initialization")
-                .parse()
-                .expect("invalid rank data");
             let worker = create_worker(context)?;
             let worker_addr = get_worker_address(worker)?;
-            let addrs = exchange::address_exchange(rank as usize, &conn_list, &worker_addr);
+
+            let rank = pmi.rank();
+            let size = pmi.size();
+
+            // Exchange worker addresses.
+            pmi.put("UCP_WORKER_ADDR", worker_addr.clone());
+            pmi.fence();
+            // let addrs = exchange::address_exchange(rank as usize, &conn_list, &worker_addr);
             let mut endpoints = vec![];
             for ep_rank in 0..size {
-                if let Some(addr) = addrs[ep_rank].as_ref() {
-                    endpoints.push(create_endpoint(worker, addr));
-                } else {
+                if ep_rank == rank {
                     endpoints.push(create_endpoint(worker, &worker_addr));
+                } else {
+                    let addr: Vec<u8> = pmi.get(ep_rank as u32, "UCP_WORKER_ADDR");
+                    endpoints.push(create_endpoint(worker, &addr));
                 }
             }
+
             Ok(Context::new(Rc::new(RefCell::new(Handle {
+                pmi,
                 context,
                 worker,
-                size,
-                rank,
+                size: size as usize,
+                rank: rank as usize,
                 endpoints,
                 requests: vec![],
                 free_requests: vec![],
