@@ -1,16 +1,18 @@
 //! Context handle code for an MPI application.
 use crate::{
-    callbacks,
-    communicator::{self, Communicator, Message, MessageMut},
-    Handle, Request, RequestStatus,
+    communicator::{self, Communicator},
+    datatype::{SendDatatype, RecvDatatype, UCXDatatype},
+    request::{self, Request, RequestStatus, RequestData},
+    Handle,
 };
 use mpicd_ucx_sys::{
     rust_ucp_dt_make_contig, ucp_request_param_t,
     ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx, ucp_tag_send_nbx,
-    ucp_worker_progress, UCP_OP_ATTR_FIELD_CALLBACK, UCP_OP_ATTR_FIELD_DATATYPE,
-    UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
-
+    ucp_worker_progress, ucp_tag_recv_info_t, ucs_status_t,
+    UCP_OP_ATTR_FIELD_CALLBACK, UCP_OP_ATTR_FIELD_DATATYPE,
+    UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL, UCS_OK,
 };
+use std::os::raw::c_void;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -41,27 +43,27 @@ impl Communicator for Context {
         self.handle.borrow().rank as i32
     }
 
-    unsafe fn isend<M: Message>(
+    unsafe fn isend<D: SendDatatype>(
         &self,
-        data: M,
+        data: D,
         dest: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
         let mut handle = self.handle.borrow_mut();
         assert!(dest < (handle.size as i32));
         let endpoint = handle.endpoints[dest as usize].clone();
-        let datatype = rust_ucp_dt_make_contig(1) as u64;
-        // Callback info
-        let cb_info: *mut bool = Box::into_raw(Box::new(false));
+        // let datatype = rust_ucp_dt_make_contig(1) as u64;
+        let datatype = UCXDatatype::new_send_type::<D>();
+        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new()));
         let param = ucp_request_param_t {
             op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
                 | UCP_OP_ATTR_FIELD_CALLBACK
                 | UCP_OP_ATTR_FIELD_USER_DATA,
-            datatype,
+            datatype: datatype.dt_id(),
             cb: ucp_request_param_t__bindgen_ty_1 {
-                send: Some(callbacks::send_nbx_callback),
+                send: Some(request::send_nbx_callback),
             },
-            user_data: cb_info as *mut _,
+            user_data: req_data as *mut _,
             ..Default::default()
         };
 
@@ -73,37 +75,36 @@ impl Communicator for Context {
             &param,
         );
 
-        let req_id = handle.add_request(Request {
-            request,
-            complete: Some(cb_info),
-        });
+        let req_id = handle.add_request(Request::new(request, Some(req_data)));
         Ok(req_id)
     }
 
-    unsafe fn irecv<M: MessageMut>(
+    unsafe fn irecv<D: RecvDatatype>(
         &self,
-        mut data: M,
+        mut data: D,
         source: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
         let mut handle = self.handle.borrow_mut();
         assert!(source < (handle.size as i32));
-        let datatype = rust_ucp_dt_make_contig(1) as u64;
+        // let datatype = rust_ucp_dt_make_contig(1) as u64;
+        let datatype = UCXDatatype::new_recv_type::<D>();
         // Callback info
-        let cb_info: *mut bool = Box::into_raw(Box::new(false));
+        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new()));
         let param = ucp_request_param_t {
             op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
                 | UCP_OP_ATTR_FIELD_CALLBACK
                 | UCP_OP_ATTR_FIELD_USER_DATA
                 | UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
-            datatype,
+            datatype: datatype.dt_id(),
             cb: ucp_request_param_t__bindgen_ty_1 {
-                recv: Some(callbacks::tag_recv_nbx_callback),
+                recv: Some(request::tag_recv_nbx_callback),
             },
-            user_data: cb_info as *mut _,
+            user_data: req_data as *mut _,
             ..Default::default()
         };
 
+        // NOTE: The correct source rank is encoded in the tag.
         let request = ucp_tag_recv_nbx(
             handle.worker,
             data.as_mut_ptr() as *mut _,
@@ -113,11 +114,7 @@ impl Communicator for Context {
             &param,
         );
 
-        // TODO: How do you determine that this is coming from the right rank?
-        let req_id = handle.add_request(Request {
-            request,
-            complete: Some(cb_info),
-        });
+        let req_id = handle.add_request(Request::new(request, Some(req_data)));
         Ok(req_id)
     }
 

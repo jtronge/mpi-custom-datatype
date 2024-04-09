@@ -22,10 +22,11 @@ mod context;
 pub use context::Context;
 mod util;
 use util::wait_loop;
-mod callbacks;
-mod datatype;
+pub mod datatype;
 mod pmi;
 use pmi::PMI;
+mod request;
+use request::{Request, RequestStatus};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Error {
@@ -98,29 +99,7 @@ impl Handle {
     /// Get the request status.
     pub(crate) unsafe fn request_status(&self, req_id: usize) -> RequestStatus {
         let req = self.requests[req_id].as_ref().expect("request is missing");
-        if rust_ucs_ptr_is_ptr(req.request) == 0 {
-            let status = rust_ucs_ptr_status(req.request);
-            if status != UCS_OK {
-                RequestStatus::Error(status_to_string(status))
-            } else {
-                RequestStatus::Complete
-            }
-        } else if rust_ucs_ptr_is_err(req.request) != 0 {
-            RequestStatus::Error("Internal pointer failure".to_string())
-        } else {
-            let status = rust_ucs_ptr_status(req.request);
-            if !*(*req.complete.as_ref().unwrap()) {
-                if status == UCS_OK {
-                    RequestStatus::Complete
-                } else if status == UCS_INPROGRESS {
-                    RequestStatus::InProgress
-                } else {
-                    RequestStatus::Error(status_to_string(status))
-                }
-            } else {
-                RequestStatus::Complete
-            }
-        }
+        req.status()
     }
 
     /// Remove a completed request.
@@ -149,28 +128,6 @@ impl Drop for Handle {
             }
             ucp_worker_destroy(self.worker);
             ucp_cleanup(self.context);
-        }
-    }
-}
-
-/// Request struct.
-pub(crate) struct Request {
-    /// Request pointer.
-    request: *mut c_void,
-
-    /// TODO: Ideally this should be an AtomicBool
-    complete: Option<*mut bool>,
-}
-
-impl Drop for Request {
-    fn drop(&mut self) {
-        unsafe {
-            if rust_ucs_ptr_is_ptr(self.request) != 0 {
-                ucp_request_free(self.request);
-            }
-            if let Some(complete) = self.complete {
-                let _ = Box::from_raw(complete);
-            }
         }
     }
 }
@@ -303,16 +260,4 @@ pub(crate) fn status_to_string(status: ucs_status_t) -> String {
             .expect("Failed to convert status string")
             .to_string()
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum RequestStatus {
-    /// Request is in progress.
-    InProgress,
-
-    /// Request has completed.
-    Complete,
-
-    /// Error occurred.
-    Error(String),
 }

@@ -1,5 +1,8 @@
 use crate::{c, consts, with_context};
-use mpicd::communicator::{Communicator, Message, MessageMut};
+use mpicd::{
+    communicator::Communicator,
+    datatype::{SendDatatype, SendKind, RecvDatatype, RecvKind},
+};
 use std::ffi::{c_int, c_void};
 
 struct SendBuffer {
@@ -7,13 +10,17 @@ struct SendBuffer {
     size: usize,
 }
 
-impl Message for SendBuffer {
+impl SendDatatype for SendBuffer {
     fn as_ptr(&self) -> *const u8 {
         self.ptr
     }
 
     fn count(&self) -> usize {
         self.size
+    }
+
+    fn kind(&self) -> SendKind {
+        SendKind::Contiguous
     }
 }
 
@@ -46,13 +53,17 @@ struct RecvBuffer {
     size: usize,
 }
 
-impl MessageMut for RecvBuffer {
+impl RecvDatatype for RecvBuffer {
     fn as_mut_ptr(&mut self) -> *mut u8 {
         self.ptr
     }
 
     fn count(&self) -> usize {
         self.size
+    }
+
+    fn kind(&mut self) -> RecvKind {
+        RecvKind::Contiguous
     }
 }
 

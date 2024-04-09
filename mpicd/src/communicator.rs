@@ -1,5 +1,6 @@
 //! Code abstracting out Rust communicators.
 use crate::RequestStatus;
+use crate::datatype::{SendDatatype, RecvDatatype};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Error {
@@ -19,47 +20,11 @@ pub trait Communicator {
     fn rank(&self) -> i32;
 
     /// Do a non-blocking send of data to the destination with specified tag.
-    unsafe fn isend<M: Message>(&self, data: M, dest: i32, tag: i32) -> Result<Self::Request>;
+    unsafe fn isend<D: SendDatatype>(&self, data: D, dest: i32, tag: i32) -> Result<Self::Request>;
 
     /// Do a non-blocking recv of data from the source with the specified tag.
-    unsafe fn irecv<M: MessageMut>(&self, data: M, source: i32, tag: i32) -> Result<Self::Request>;
+    unsafe fn irecv<D: RecvDatatype>(&self, data: D, source: i32, tag: i32) -> Result<Self::Request>;
 
     /// Wait for all requests in list to complete.
     unsafe fn waitall(&self, requests: &[Self::Request]) -> Result<Vec<RequestStatus>>;
-}
-
-pub trait Message {
-    /// Return a pointer to the underlying data.
-    fn as_ptr(&self) -> *const u8;
-
-    /// Return the number of bytes.
-    fn count(&self) -> usize;
-}
-
-pub trait MessageMut {
-    /// Return a mutable pointer to the underlying data.
-    fn as_mut_ptr(&mut self) -> *mut u8;
-
-    /// Return the number of bytes.
-    fn count(&self) -> usize;
-}
-
-impl Message for &Vec<u32> {
-    fn as_ptr(&self) -> *const u8 {
-        Vec::as_ptr(self) as *const _
-    }
-
-    fn count(&self) -> usize {
-        self.len() * std::mem::size_of::<u32>()
-    }
-}
-
-impl MessageMut for &mut Vec<u32> {
-    fn as_mut_ptr(&mut self) -> *mut u8 {
-        Vec::as_mut_ptr(self) as *mut _
-    }
-
-    fn count(&self) -> usize {
-        self.len() * std::mem::size_of::<u32>()
-    }
 }
