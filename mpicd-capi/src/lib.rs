@@ -8,12 +8,14 @@ mod consts;
 mod datatype;
 mod p2p;
 mod c;
+mod ccontext;
+use ccontext::CContext;
 
 /// NOTE: This is not thread-safe but is required for now, unfortunately, since
 ///       the C interface relies on a global context. One way to solve this would be
 ///       to wrap internal types in an Arc<Mutex<..>>, but this would likely hurt
 ///       performance, since every call would have to lock this.
-pub(crate) static mut CONTEXT: Option<mpicd::Context> = None;
+pub(crate) static mut CONTEXT: Option<(mpicd::Context, CContext)> = None;
 
 /// Once object used for context initialization.
 static CONTEXT_START: Once = Once::new();
@@ -23,9 +25,10 @@ static CONTEXT_START: Once = Once::new();
 /// SAFETY: Must be used only between calls of MPI_Init() and MPI_Finalize().
 pub(crate) unsafe fn with_context<F, R>(f: F) -> R
 where
-    F: FnOnce(&mpicd::Context) -> R,
+    F: FnOnce(&mpicd::Context, &CContext) -> R,
 {
-    f(CONTEXT.as_ref().unwrap())
+    let ctx = CONTEXT.as_ref().unwrap();
+    f(&ctx.0, &ctx.1)
 }
 
 /// Initialize the MPI context.
@@ -36,7 +39,7 @@ pub unsafe extern "C" fn MPI_Init(_argc: *mut c_int, _argv: *mut *mut *mut c_cha
 
     info!("MPI_Init()");
     CONTEXT_START.call_once(|| {
-        let _ = CONTEXT.insert(mpicd::init().expect("failed to initailize the MPI context"));
+        let _ = CONTEXT.insert((mpicd::init().expect("failed to initailize the MPI context"), CContext::new()));
     });
     consts::SUCCESS
 }
@@ -57,7 +60,7 @@ pub unsafe extern "C" fn MPI_Comm_size(comm: c::Comm, size: *mut c_int) -> c::Re
     // Assume MPI_COMM_WORLD.
     assert_eq!(comm, consts::COMM_WORLD);
 
-    if let Some(ctx) = CONTEXT.as_ref() {
+    if let Some((ctx, _)) = CONTEXT.as_ref() {
         *size = ctx.size();
         consts::SUCCESS
     } else {
@@ -73,7 +76,7 @@ pub unsafe extern "C" fn MPI_Comm_rank(comm: c::Comm, rank: *mut c_int) -> c::Re
     // Assume MPI_COMM_WORLD.
     assert_eq!(comm, consts::COMM_WORLD);
 
-    if let Some(ctx) = CONTEXT.as_ref() {
+    if let Some((ctx, _)) = CONTEXT.as_ref() {
         *rank = ctx.rank();
         consts::SUCCESS
     } else {

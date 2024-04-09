@@ -6,7 +6,6 @@ typedef size_t MPI_Count;
 /* For simplicity MPI_Comm and other handles are defined to be integers */
 typedef int MPI_Comm;
 typedef int MPI_Datatype;
-
 /* Handle constants */
 #define MPI_COMM_WORLD 1
 
@@ -31,23 +30,33 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
 
 /* Datatype functions
  *
- * NOTE: Need to clarify count vs size arguments.
+ * Some changes to note:
+ *   * renaming of count to size (all units in bytes)
+ *   * addition of int return for error handling
+ *   * addition of query function to custom api (how else would we know full
+ *     length of packed data without packing first?)
+ *   * removal of elem_size and elem_extent
+ *   * Q: When to deallocate the resume pointer, if allocated?
  */
-typedef int (*MPI_Type_custom_pack_function)(MPI_Count src_count, const void *src,
-                                             MPI_Count dst_count, void *dst,
-                                             MPI_Count *used, void **resume);
-typedef int (*MPI_Type_custom_unpack_function)(MPI_Count src_count, const void *src,
-                                               MPI_Count src_size, void *dst,
-                                               void **resume);
-typedef int (*MPI_Type_custom_reg_function)(const void *src, MPI_Count max_regions,
-                                            MPI_Count region_lengths[],
-                                            void *region_bases[], void **resume);
+typedef int (MPI_Type_custom_pack_function)(MPI_Count src_size, const void *src,
+                                            MPI_Count dst_size, void *dst,
+                                            MPI_Count *used, void **resume);
+typedef int (MPI_Type_custom_unpack_function)(MPI_Count src_size, const void *src,
+                                              MPI_Count dst_size, void *dst,
+                                              void **resume);
+typedef int (MPI_Type_custom_query_function)(const void *buf, MPI_Count size,
+                                             MPI_Count *packed_size);
+typedef int (MPI_Type_custom_reg_function)(const void *src, MPI_Count max_regions,
+                                           MPI_Count region_lengths[],
+                                           void *region_bases[], void **resume);
 
 int MPI_Type_create_custom(MPI_Type_custom_pack_function *packfn,
                            MPI_Type_custom_unpack_function *unpackfn,
-                           MPI_Count elem_size, MPI_Count elem_extent,
+                           MPI_Type_custom_query_function *queryfn,
                            MPI_Type_custom_reg_function *regfn,
                            MPI_Count reg_count, MPI_Datatype *type);
+
+/* Idea: use a builder-like interface */
 
 /* Constants */
 #define MPI_SUCCESS 0

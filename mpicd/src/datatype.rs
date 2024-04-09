@@ -130,6 +130,7 @@ impl RecvDatatype for &mut Vec<u32> {
     }
 }
 
+/// NOTE: count is the number of datatype elements (NOT bytes).
 unsafe extern "C" fn start_pack(
     context: *mut c_void,
     buffer: *const c_void,
@@ -139,6 +140,7 @@ unsafe extern "C" fn start_pack(
     std::ptr::null_mut()
 }
 
+/// NOTE: count is the number of datatype elements (NOT bytes).
 unsafe extern "C" fn start_unpack(
     context: *mut c_void,
     buffer: *mut c_void,
@@ -154,6 +156,7 @@ unsafe extern "C" fn packed_size(state: *mut c_void) -> usize {
     0
 }
 
+/// NOTE: offset and max_length are in bytes.
 unsafe extern "C" fn pack(
     state: *mut c_void,
     offset: usize,
@@ -164,6 +167,7 @@ unsafe extern "C" fn pack(
     0
 }
 
+/// NOTE: offset and length are in bytes.
 unsafe extern "C" fn unpack(
     state: *mut c_void,
     offset: usize,

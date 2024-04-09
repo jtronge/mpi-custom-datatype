@@ -14,6 +14,8 @@ pub type PackFn = extern "C" fn(Count, *const c_void, Count, *mut c_void, *mut C
 
 pub type UnpackFn = extern "C" fn(Count, *const c_void, Count, *mut c_void, *mut *mut c_void) -> c_int;
 
+pub type QueryFn = extern "C" fn(buf: *const c_void, size: usize, packed_size: *mut usize);
+
 pub type RegFn =
     extern "C" fn(*const c_void, Count, *mut Count, *mut *mut c_void, *mut *mut c_void) -> c_int;
 

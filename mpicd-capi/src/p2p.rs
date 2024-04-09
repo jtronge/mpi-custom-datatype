@@ -35,7 +35,7 @@ pub unsafe extern "C" fn MPI_Send(
 ) -> c::ReturnStatus {
     assert_eq!(comm, consts::COMM_WORLD);
 
-    with_context(move |ctx| {
+    with_context(move |ctx, _| {
         let send_buffer = SendBuffer {
             ptr: buf as *const _,
             size: count.try_into().unwrap(),
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn MPI_Recv(
 ) -> c::ReturnStatus {
     assert_eq!(comm, consts::COMM_WORLD);
 
-    with_context(move |ctx| {
+    with_context(move |ctx, _| {
         let recv_buffer = RecvBuffer {
             ptr: buf as *mut _,
             size: count.try_into().unwrap(),
