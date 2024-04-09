@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <mpi.h>
 
-int main()
+int main(void)
 {
     int size, rank;
     uint8_t buf0[] = {1, 2, 3, 4};
