@@ -1,3 +1,4 @@
+//! Code abstracting out Rust communicators.
 use crate::RequestStatus;
 
 #[derive(Copy, Clone, Debug)]

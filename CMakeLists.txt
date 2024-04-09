@@ -10,9 +10,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(UCX REQUIRED ucx>=1.12)
 pkg_check_modules(PMIX REQUIRED pmix>=5)
 
+# Add the Rust library
 include_directories(mpicd-capi/include)
 corrosion_import_crate(MANIFEST_PATH mpicd-capi/Cargo.toml PROFILE release)
-add_executable(main main.c)
-target_link_libraries(main PUBLIC mpicd-capi)
-target_link_libraries(main PUBLIC ${UCX_LINK_LIBRARIES})
-target_link_libraries(main PUBLIC ${PMIX_LINK_LIBRARIES})
+
+add_subdirectory(examples)

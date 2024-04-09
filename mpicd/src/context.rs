@@ -1,4 +1,4 @@
-//! UCX context handle
+//! Context handle code for an MPI application.
 use crate::{
     callbacks,
     communicator::{self, Communicator, Message, MessageMut},
@@ -14,6 +14,10 @@ use mpicd_ucx_sys::{
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// Context handle.
+///
+/// This implements Communicator and also acts as MPI_COMM_WORLD would in a
+/// standard MPI application.
 pub struct Context {
     /// Handle with ucx info.
     handle: Rc<RefCell<Handle>>,
@@ -125,15 +129,15 @@ impl Communicator for Context {
         let mut handle = self.handle.borrow_mut();
         let mut statuses = vec![RequestStatus::InProgress; requests.len()];
         let mut complete = 0;
+
         while complete < requests.len() {
             for _ in 0..requests.len() {
                 ucp_worker_progress(handle.worker);
             }
 
             for (i, req) in requests.iter().enumerate() {
-                match statuses[i] {
-                    RequestStatus::InProgress => (),
-                    _ => continue,
+                if statuses[i] != RequestStatus::InProgress {
+                    continue;
                 }
 
                 match handle.request_status(*req) {
@@ -150,6 +154,7 @@ impl Communicator for Context {
     }
 }
 
+/// The tag mask used for receive requests; for now all bits are important.
 const TAG_MASK: u64 = !0;
 
 /// Encode a tag into a 64-bit UCX tag.

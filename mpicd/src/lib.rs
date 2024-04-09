@@ -155,7 +155,10 @@ impl Drop for Handle {
 
 /// Request struct.
 pub(crate) struct Request {
+    /// Request pointer.
     request: *mut c_void,
+
+    /// TODO: Ideally this should be an AtomicBool
     complete: Option<*mut bool>,
 }
 
@@ -302,7 +305,7 @@ pub(crate) fn status_to_string(status: ucs_status_t) -> String {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RequestStatus {
     /// Request is in progress.
     InProgress,

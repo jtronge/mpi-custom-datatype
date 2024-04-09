@@ -1,5 +1,4 @@
-use crate::datatype::Datatype;
-use crate::{consts, with_context, Comm, Request, Status};
+use crate::{c, consts, with_context};
 use mpicd::communicator::{Communicator, Message, MessageMut};
 use std::ffi::{c_int, c_void};
 
@@ -22,11 +21,13 @@ impl Message for SendBuffer {
 pub unsafe extern "C" fn MPI_Send(
     buf: *const c_void,
     count: c_int,
-    _datatype: Datatype,
+    _datatype: c::Datatype,
     dest: c_int,
     tag: c_int,
-    _comm: Comm,
-) -> c_int {
+    comm: c::Comm,
+) -> c::ReturnStatus {
+    assert_eq!(comm, consts::COMM_WORLD);
+
     with_context(move |ctx| {
         let send_buffer = SendBuffer {
             ptr: buf as *const _,
@@ -59,11 +60,13 @@ impl MessageMut for RecvBuffer {
 pub unsafe extern "C" fn MPI_Recv(
     buf: *mut c_void,
     count: c_int,
-    _datatype: Datatype,
+    _datatype: c::Datatype,
     source: c_int,
     tag: c_int,
-    _comm: Comm,
-) -> c_int {
+    comm: c::Comm,
+) -> c::ReturnStatus {
+    assert_eq!(comm, consts::COMM_WORLD);
+
     with_context(move |ctx| {
         let recv_buffer = RecvBuffer {
             ptr: buf as *mut _,
@@ -81,12 +84,12 @@ pub unsafe extern "C" fn MPI_Recv(
 pub unsafe extern "C" fn MPI_Isend(
     _buf: *const c_void,
     _count: c_int,
-    _datatype: Datatype,
+    _datatype: c::Datatype,
     _dest: c_int,
     _tag: c_int,
-    _comm: Comm,
-    _request: *mut Request,
-) -> c_int {
+    _comm: c::Comm,
+    _request: *mut c::Request,
+) -> c::ReturnStatus {
     consts::SUCCESS
 }
 
@@ -94,20 +97,20 @@ pub unsafe extern "C" fn MPI_Isend(
 pub unsafe extern "C" fn MPI_Irecv(
     _buf: *mut c_void,
     _count: c_int,
-    _datatype: Datatype,
+    _datatype: c::Datatype,
     _source: c_int,
     _tag: c_int,
-    _comm: Comm,
-    _request: *mut Request,
-) -> c_int {
+    _comm: c::Comm,
+    _request: *mut c::Request,
+) -> c::ReturnStatus {
     consts::SUCCESS
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Waitall(
     _count: c_int,
-    _array_of_requests: *mut Request,
-    _array_of_statuses: *mut Status,
-) -> c_int {
+    _array_of_requests: *mut c::Request,
+    _array_of_statuses: *mut c::Status,
+) -> c::ReturnStatus {
     consts::SUCCESS
 }

@@ -7,23 +7,15 @@ use std::sync::Once;
 mod consts;
 mod datatype;
 mod p2p;
-
-pub type Request = c_int;
-pub type Comm = c_int;
-
-/// MPI_Status struct.
-#[repr(C)]
-pub struct Status {
-    source: c_int,
-    tag: c_int,
-    error: c_int,
-}
+mod c;
 
 /// NOTE: This is not thread-safe but is required for now, unfortunately, since
 ///       the C interface relies on a global context. One way to solve this would be
 ///       to wrap internal types in an Arc<Mutex<..>>, but this would likely hurt
 ///       performance, since every call would have to lock this.
 pub(crate) static mut CONTEXT: Option<mpicd::Context> = None;
+
+/// Once object used for context initialization.
 static CONTEXT_START: Once = Once::new();
 
 /// Function passing a reference to the context from the outer scope.
@@ -38,7 +30,7 @@ where
 
 /// Initialize the MPI context.
 #[no_mangle]
-pub unsafe extern "C" fn MPI_Init(_argc: *mut c_int, _argv: *mut *mut *mut c_char) -> c_int {
+pub unsafe extern "C" fn MPI_Init(_argc: *mut c_int, _argv: *mut *mut *mut c_char) -> c::ReturnStatus {
     // Initialize logging.
     env_logger::init();
 
@@ -51,18 +43,20 @@ pub unsafe extern "C" fn MPI_Init(_argc: *mut c_int, _argv: *mut *mut *mut c_cha
 
 /// Finalize everything.
 #[no_mangle]
-pub unsafe extern "C" fn MPI_Finalize() -> c_int {
+pub unsafe extern "C" fn MPI_Finalize() -> c::ReturnStatus {
     info!("MPI_Finalize()");
     let _ = CONTEXT.take();
     consts::SUCCESS
 }
 
 /// Get the size for this communicator.
-///
-/// NOTE: For now, all communicators are assumed to be MPI_COMM_WORLD.
 #[no_mangle]
-pub unsafe extern "C" fn MPI_Comm_size(_comm: Comm, size: *mut c_int) -> c_int {
+pub unsafe extern "C" fn MPI_Comm_size(comm: c::Comm, size: *mut c_int) -> c::ReturnStatus {
     info!("MPI_Comm_size()");
+
+    // Assume MPI_COMM_WORLD.
+    assert_eq!(comm, consts::COMM_WORLD);
+
     if let Some(ctx) = CONTEXT.as_ref() {
         *size = ctx.size();
         consts::SUCCESS
@@ -72,11 +66,13 @@ pub unsafe extern "C" fn MPI_Comm_size(_comm: Comm, size: *mut c_int) -> c_int {
 }
 
 /// Get the size for this rank.
-///
-/// NOTE: For now, all communicators are assumed to be MPI_COMM_WORLD.
 #[no_mangle]
-pub unsafe extern "C" fn MPI_Comm_rank(_comm: Comm, rank: *mut c_int) -> c_int {
+pub unsafe extern "C" fn MPI_Comm_rank(comm: c::Comm, rank: *mut c_int) -> c::ReturnStatus {
     info!("MPI_Comm_rank()");
+
+    // Assume MPI_COMM_WORLD.
+    assert_eq!(comm, consts::COMM_WORLD);
+
     if let Some(ctx) = CONTEXT.as_ref() {
         *rank = ctx.rank();
         consts::SUCCESS

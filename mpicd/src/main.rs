@@ -1,3 +1,4 @@
+//! Dummy example working with the Rust mpicd code.
 use mpicd::communicator::Communicator;
 
 fn main() {

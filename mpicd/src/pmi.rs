@@ -1,16 +1,20 @@
+//! Basic PMIx code to get it working on two nodes.
 use log::info;
 use mpicd_pmix_sys::{
     pmix_byte_object_t, pmix_proc_t, pmix_status_t, pmix_value__bindgen_ty_1, pmix_value_t,
     PMIx_Commit, PMIx_Error_string, PMIx_Fence, PMIx_Finalize, PMIx_Get, PMIx_Init,
-    PMIx_Initialized, PMIx_Put, PMIx_Value_unload, PMIX_BYTE_OBJECT, PMIX_GLOBAL,
-    PMIX_LOCAL_RANK, PMIX_NODE_RANK,
+    PMIx_Initialized, PMIx_Put, PMIx_Value_unload, PMIx_Value_free,
+    PMIX_BYTE_OBJECT, PMIX_GLOBAL, PMIX_LOCAL_RANK, PMIX_NODE_RANK,
     PMIX_SUCCESS, PMIX_UINT16, PMIX_UINT32, PMIX_UNIV_SIZE,
 };
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::mem::MaybeUninit;
 
 pub trait PMIXType {
+    /// Unload a PMIx value into the proper type.
     unsafe fn unload(value: *mut pmix_value_t) -> Self;
+
+    /// Load the type into a pmix_value_t.
     unsafe fn load(&mut self) -> pmix_value_t;
 }
 
@@ -60,6 +64,7 @@ impl PMIXType for Vec<u8> {
     }
 }
 
+/// Do a PMIx_Get for a given key and type.
 unsafe fn get<T: PMIXType>(proc: pmix_proc_t, key: *const c_char) -> T {
     let mut value = MaybeUninit::<*mut pmix_value_t>::uninit();
     let ret = PMIx_Get(&proc, key, std::ptr::null_mut(), 0, value.as_mut_ptr());
@@ -70,15 +75,22 @@ unsafe fn get<T: PMIXType>(proc: pmix_proc_t, key: *const c_char) -> T {
     if value == std::ptr::null_mut() {
         panic!("PMIx_Get returned NULL value");
     }
-    T::unload(value)
+    let result = T::unload(value);
+    PMIx_Value_free(value, 1);
+    result
 }
 
+/// PMI handle with additional metadata.
 pub struct PMI {
+    /// Process for this rank.
     proc: pmix_proc_t,
+
+    /// Number of processes in this job.
     size: u32,
 }
 
 impl PMI {
+    /// Initialize PMIx and return the handle.
     pub fn init() -> PMI {
         unsafe {
             if PMIx_Initialized() != 0 {
