@@ -5,6 +5,7 @@ use mpicd::{
     datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod, CustomPack, CustomUnpack, DatatypeResult, DatatypeError},
 };
 use crate::{consts, with_context};
+use log::debug;
 
 /// List of conversion functions to be used for a custom datatype.
 #[derive(Copy, Clone)]
@@ -77,6 +78,7 @@ struct CustomBufferPacker {
 impl CustomPack for CustomBufferPacker {
     /// Pack the datatype by using the externally provided C functions.
     fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<usize> {
+        debug!("calling c packfn");
         unsafe {
             assert!(offset < self.len);
             let ptr = self.ptr.offset(offset as isize);
@@ -126,6 +128,7 @@ struct CustomBufferUnpacker {
 
 impl CustomUnpack for CustomBufferUnpacker {
     fn unpack(&mut self, offset: usize, source: &[u8]) -> DatatypeResult<()> {
+        debug!("calling c unpackfn");
         unsafe {
             assert!(offset < self.len);
             let ptr = self.ptr.offset(offset as isize);
@@ -141,6 +144,24 @@ impl CustomUnpack for CustomBufferUnpacker {
                 Ok(())
             } else {
                 Err(DatatypeError::UnpackError)
+            }
+        }
+    }
+
+    /// Return the packed size using the externally provided C functions.
+    fn packed_size(&self) -> DatatypeResult<usize> {
+        unsafe {
+            let mut packed_size = 0;
+            let ret = (self.custom_datatype.queryfn)(
+                self.ptr as *const _,
+                self.len,
+                &mut packed_size,
+            );
+
+            if ret == 0 {
+                Ok(packed_size)
+            } else {
+                Err(DatatypeError::PackError)
             }
         }
     }

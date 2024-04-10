@@ -19,6 +19,7 @@ pub type UnpackFn = extern "C" fn(Count, *const c_void, Count, *mut c_void, *mut
 /// Function pointer for querying the size of a packed representation buffer.
 pub type QueryFn = extern "C" fn(buf: *const c_void, size: usize, packed_size: *mut usize) -> c_int;
 
+/// Function pointer for getting iovec-like memory regions for a type.
 pub type RegFn =
     extern "C" fn(*const c_void, Count, *mut Count, *mut *mut c_void, *mut *mut c_void) -> c_int;
 

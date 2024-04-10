@@ -69,6 +69,9 @@ pub trait CustomPack {
 pub trait CustomUnpack {
     /// Unpack the datatype.
     fn unpack(&mut self, offset: usize, source: &[u8]) -> DatatypeResult<()>;
+
+    /// Return the total packed size of the datatype.
+    fn packed_size(&self) -> DatatypeResult<usize>;
 }
 
 /// Send datatype wrapping the ucx type.
@@ -190,12 +193,19 @@ unsafe extern "C" fn packed_size(state: *mut c_void) -> usize {
     debug!("datatype::packed_size()");
 
     let state = state as *mut PackContext;
-    (*state)
-        .pack
-        .as_mut()
-        .expect("missing pack object")
-        .packed_size()
-        .expect("failed to get packed size of buffer")
+    let size = if let Some(pack) = (*state).pack.as_ref() {
+        pack
+            .packed_size()
+            .expect("failed to get packed size of buffer")
+    } else if let Some(unpack) = (*state).unpack.as_ref() {
+        unpack
+            .packed_size()
+            .expect("failed to get packed size of buffer")
+    } else {
+        panic!("Missing pack and unpack implementations for querying packed_size");
+    };
+    debug!("packed_size: {}", size);
+    size
 }
 
 /// NOTE: offset and max_length are in bytes.
@@ -225,7 +235,7 @@ unsafe extern "C" fn unpack(
     src: *const c_void,
     length: usize,
 ) -> ucs_status_t {
-    debug!("datatype::unpack()");
+    debug!("datatype::unpack(state=., offset={}, src=., length={})", offset, length);
 
     let state = state as *mut PackContext;
     let src = src as *mut u8;

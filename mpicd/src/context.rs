@@ -15,6 +15,7 @@ use mpicd_ucx_sys::{
 use std::os::raw::c_void;
 use std::cell::RefCell;
 use std::rc::Rc;
+use log::debug;
 
 /// Context handle.
 ///
@@ -103,6 +104,8 @@ impl Communicator for Context {
             user_data: req_data as *mut _,
             ..Default::default()
         };
+
+        debug!("(receive call) data.count() = {}", data.count());
 
         // NOTE: The correct source rank is encoded in the tag.
         let request = ucp_tag_recv_nbx(
