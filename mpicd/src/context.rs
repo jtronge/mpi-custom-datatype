@@ -1,7 +1,7 @@
 //! Context handle code for an MPI application.
 use crate::{
     communicator::{self, Communicator},
-    datatype::{SendDatatype, RecvDatatype, UCXDatatype},
+    datatype::{SendBuffer, RecvBuffer, UCXDatatype},
     request::{self, Request, RequestStatus, RequestData},
     Handle,
 };
@@ -43,9 +43,9 @@ impl Communicator for Context {
         self.handle.borrow().rank as i32
     }
 
-    unsafe fn isend<D: SendDatatype>(
+    unsafe fn isend<B: SendBuffer>(
         &self,
-        data: D,
+        data: B,
         dest: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
@@ -53,7 +53,7 @@ impl Communicator for Context {
         assert!(dest < (handle.size as i32));
         let endpoint = handle.endpoints[dest as usize].clone();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
-        let datatype = UCXDatatype::new_send_type::<D>();
+        let datatype = UCXDatatype::new_send_type(&data);
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new()));
         let param = ucp_request_param_t {
             op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
@@ -79,16 +79,16 @@ impl Communicator for Context {
         Ok(req_id)
     }
 
-    unsafe fn irecv<D: RecvDatatype>(
+    unsafe fn irecv<B: RecvBuffer>(
         &self,
-        mut data: D,
+        mut data: B,
         source: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
         let mut handle = self.handle.borrow_mut();
         assert!(source < (handle.size as i32));
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
-        let datatype = UCXDatatype::new_recv_type::<D>();
+        let datatype = UCXDatatype::new_recv_type(&mut data);
         // Callback info
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new()));
         let param = ucp_request_param_t {

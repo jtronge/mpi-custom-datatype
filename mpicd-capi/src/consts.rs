@@ -12,4 +12,4 @@ pub const COMM_WORLD: c::Comm = 1;
 
 pub const BYTE: c::Datatype = 1;
 
-pub const MAX_PREDEFINED: c::Datatype = 2;
+pub const MAX_PREDEFINED: c::Datatype = 1;

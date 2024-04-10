@@ -25,10 +25,10 @@ static CONTEXT_START: Once = Once::new();
 /// SAFETY: Must be used only between calls of MPI_Init() and MPI_Finalize().
 pub(crate) unsafe fn with_context<F, R>(f: F) -> R
 where
-    F: FnOnce(&mpicd::Context, &CContext) -> R,
+    F: FnOnce(&mut mpicd::Context, &mut CContext) -> R,
 {
-    let ctx = CONTEXT.as_ref().unwrap();
-    f(&ctx.0, &ctx.1)
+    let ctx = CONTEXT.as_mut().unwrap();
+    f(&mut ctx.0, &mut ctx.1)
 }
 
 /// Initialize the MPI context.

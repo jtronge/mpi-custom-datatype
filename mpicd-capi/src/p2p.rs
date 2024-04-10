@@ -1,91 +1,88 @@
-use crate::{c, consts, with_context};
 use mpicd::{
     communicator::Communicator,
-    datatype::{SendDatatype, SendKind, RecvDatatype, RecvKind},
+    datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod},
 };
 use std::ffi::{c_int, c_void};
-
-struct SendBuffer {
-    ptr: *const u8,
-    size: usize,
-}
-
-impl SendDatatype for SendBuffer {
-    fn as_ptr(&self) -> *const u8 {
-        self.ptr
-    }
-
-    fn count(&self) -> usize {
-        self.size
-    }
-
-    fn kind(&self) -> SendKind {
-        SendKind::Contiguous
-    }
-}
+use crate::{
+    datatype::{ByteRecvBuffer, CustomBuffer, ByteSendBuffer},
+    c, consts, with_context,
+};
 
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Send(
     buf: *const c_void,
     count: c_int,
-    _datatype: c::Datatype,
+    datatype: c::Datatype,
     dest: c_int,
     tag: c_int,
     comm: c::Comm,
 ) -> c::ReturnStatus {
     assert_eq!(comm, consts::COMM_WORLD);
 
-    with_context(move |ctx, _| {
-        let send_buffer = SendBuffer {
-            ptr: buf as *const _,
-            size: count.try_into().unwrap(),
+    with_context(move |ctx, cctx| {
+        let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
+            let buffer = CustomBuffer {
+                ptr_mut: std::ptr::null_mut(),
+                ptr: buf as *const _,
+                len: count as usize,
+                custom_datatype,
+            };
+            ctx
+                .isend(buffer, dest, tag)
+                .expect("failed to send request")
+        } else {
+            // Assume MPI_BYTE
+            assert_eq!(datatype, consts::BYTE);
+
+            let buffer = ByteSendBuffer {
+                ptr: buf as *const _,
+                size: count.try_into().unwrap(),
+            };
+            ctx
+                .isend(buffer, dest, tag)
+                .expect("failed to send request")
         };
-        let req = ctx
-            .isend(send_buffer, dest, tag)
-            .expect("failed to send request");
+
         let _ = ctx.waitall(&[req]);
         consts::SUCCESS
     })
-}
-
-struct RecvBuffer {
-    ptr: *mut u8,
-    size: usize,
-}
-
-impl RecvDatatype for RecvBuffer {
-    fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.ptr
-    }
-
-    fn count(&self) -> usize {
-        self.size
-    }
-
-    fn kind(&mut self) -> RecvKind {
-        RecvKind::Contiguous
-    }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Recv(
     buf: *mut c_void,
     count: c_int,
-    _datatype: c::Datatype,
+    datatype: c::Datatype,
     source: c_int,
     tag: c_int,
     comm: c::Comm,
 ) -> c::ReturnStatus {
     assert_eq!(comm, consts::COMM_WORLD);
 
-    with_context(move |ctx, _| {
-        let recv_buffer = RecvBuffer {
-            ptr: buf as *mut _,
-            size: count.try_into().unwrap(),
+    with_context(move |ctx, cctx| {
+        let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
+            let buffer = CustomBuffer {
+                ptr_mut: buf as *mut _,
+                ptr: std::ptr::null(),
+                len: count as usize,
+                custom_datatype,
+            };
+            ctx
+                .irecv(buffer, source, tag)
+                .expect("failed to receive request")
+        } else {
+            // Assume MPI_BYTE
+            assert_eq!(datatype, consts::BYTE);
+
+            let buffer = ByteRecvBuffer {
+                ptr: buf as *mut _,
+                size: count.try_into().unwrap(),
+            };
+            ctx
+                .irecv(buffer, source, tag)
+                .expect("failed to receive request")
         };
-        let req = ctx
-            .irecv(recv_buffer, source, tag)
-            .expect("failed to receive request");
+
         let _ = ctx.waitall(&[req]);
         consts::SUCCESS
     })
