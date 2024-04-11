@@ -55,12 +55,13 @@ impl Communicator for Context {
         let endpoint = handle.endpoints[dest as usize].clone();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
         let datatype = UCXDatatype::new_send_type(&data);
-        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new()));
+        let dt_id = datatype.dt_id();
+        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
         let param = ucp_request_param_t {
             op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
                 | UCP_OP_ATTR_FIELD_CALLBACK
                 | UCP_OP_ATTR_FIELD_USER_DATA,
-            datatype: datatype.dt_id(),
+            datatype: dt_id,
             cb: ucp_request_param_t__bindgen_ty_1 {
                 send: Some(request::send_nbx_callback),
             },
@@ -90,14 +91,15 @@ impl Communicator for Context {
         assert!(source < (handle.size as i32));
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
         let datatype = UCXDatatype::new_recv_type(&mut data);
+        let dt_id = datatype.dt_id();
         // Callback info
-        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new()));
+        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
         let param = ucp_request_param_t {
             op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
                 | UCP_OP_ATTR_FIELD_CALLBACK
                 | UCP_OP_ATTR_FIELD_USER_DATA
                 | UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
-            datatype: datatype.dt_id(),
+            datatype: dt_id,
             cb: ucp_request_param_t__bindgen_ty_1 {
                 recv: Some(request::tag_recv_nbx_callback),
             },

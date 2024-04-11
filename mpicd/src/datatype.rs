@@ -1,10 +1,11 @@
-use crate::{Result, Error};
+use std::ffi::c_void;
+use std::mem::MaybeUninit;
+use std::rc::Rc;
 use log::debug;
 use mpicd_ucx_sys::{
     rust_ucp_dt_make_contig, ucp_datatype_t, ucp_dt_create_generic, ucp_generic_dt_ops_t, ucs_status_t, UCS_OK,
 };
-use std::ffi::c_void;
-use std::mem::MaybeUninit;
+use crate::{Result, Error};
 
 #[derive(Copy, Clone, Debug)]
 pub enum DatatypeError {
@@ -20,7 +21,7 @@ pub enum PackMethod {
     Contiguous,
 
     /// Datatype must be packed with this packer.
-    Pack(Box<dyn CustomPack>),
+    Pack(Box<dyn PackContext>),
 }
 
 /// Immutable datatype to send as a message.
@@ -41,7 +42,7 @@ pub enum UnpackMethod {
     Contiguous,
 
     /// Datatype must be unpacked with this type.
-    Unpack(Box<dyn CustomUnpack>),
+    Unpack(Box<dyn UnpackContext>),
 }
 
 /// Mutable datatype to be received into.
@@ -56,8 +57,20 @@ pub trait RecvBuffer {
     fn unpack_method(&mut self) -> UnpackMethod;
 }
 
+/// Pack context for creating Pack objects.
+pub trait PackContext {
+    /// Create a new Pack object.
+    fn packer(&mut self) -> Box<dyn Pack>;
+}
+
+/// Unpack context for creating Unpack objects.
+pub trait UnpackContext {
+    /// Create a new Unpack object.
+    fn unpacker(&mut self) -> Box<dyn Unpack>;
+}
+
 /// Custom pack a message datatype into a buffer.
-pub trait CustomPack {
+pub trait Pack {
     /// Pack the datatype, returning number of bytes used.
     fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<usize>;
 
@@ -66,7 +79,7 @@ pub trait CustomPack {
 }
 
 /// Custom unpack a message into a buffer.
-pub trait CustomUnpack {
+pub trait Unpack {
     /// Unpack the datatype.
     fn unpack(&mut self, offset: usize, source: &[u8]) -> DatatypeResult<()>;
 
@@ -76,47 +89,54 @@ pub trait CustomUnpack {
 
 /// Send datatype wrapping the ucx type.
 pub(crate) struct UCXDatatype {
+    /// Underlying ucx datatype.
     datatype: ucp_datatype_t,
+
+    /// Pointer to a pack context impl that will be used if this is a ucx generic datatype.
+    pack_context: Option<*mut PackContextType>,
 }
 
 impl UCXDatatype {
     /// Create a new UCX datatype from the send datatype.
     pub(crate) unsafe fn new_send_type<B: SendBuffer>(data: &B) -> UCXDatatype {
+        let mut pack_context: Option<*mut PackContextType> = None;
+
         let datatype = match data.pack_method() {
             PackMethod::Contiguous => rust_ucp_dt_make_contig(1) as ucp_datatype_t,
-            PackMethod::Pack(custom_pack) => {
-                let pack_context = PackContext {
-                    pack: Some(custom_pack),
-                    unpack: None,
-                };
-                let pack_context = Box::into_raw(Box::new(pack_context));
-                create_generic_datatype(pack_context)
+            PackMethod::Pack(pack_ctx) => {
+                let ctx = PackContextType::Pack(pack_ctx);
+                let ctx_ptr = Box::into_raw(Box::new(ctx)) as *mut _;
+                let _ = pack_context.insert(ctx_ptr);
+                create_generic_datatype(ctx_ptr)
                     .expect("failed to create generic datatype")
             }
         };
 
         UCXDatatype {
             datatype,
+            pack_context,
         }
     }
 
     /// Create a new UCX datatype from the recv datatype.
     pub(crate) unsafe fn new_recv_type<B: RecvBuffer>(data: &mut B) -> UCXDatatype {
+        let mut pack_context: Option<*mut PackContextType> = None;
+
         let datatype = match data.unpack_method() {
             UnpackMethod::Contiguous => rust_ucp_dt_make_contig(1) as ucp_datatype_t,
-            UnpackMethod::Unpack(custom_unpack) => {
-                let pack_context = PackContext {
-                    pack: None,
-                    unpack: Some(custom_unpack),
-                };
-                let pack_context = Box::into_raw(Box::new(pack_context));
-                create_generic_datatype(pack_context)
+            UnpackMethod::Unpack(unpack_ctx) => {
+                let ctx = PackContextType::Unpack(unpack_ctx);
+                // The context_ptr is free'd in the drop method for UCXDatatype.
+                let ctx_ptr = Box::into_raw(Box::new(ctx));
+                pack_context.insert(ctx_ptr);
+                create_generic_datatype(ctx_ptr)
                     .expect("failed to create generic datatype")
             }
         };
 
         UCXDatatype {
             datatype,
+            pack_context,
         }
     }
 
@@ -128,7 +148,11 @@ impl UCXDatatype {
 
 impl Drop for UCXDatatype {
     fn drop(&mut self) {
-        // TODO: Free datatype if necessary.
+        unsafe {
+            if let Some(pack_context) = self.pack_context {
+                let _ = Rc::from_raw(pack_context);
+            }
+        }
     }
 }
 
@@ -161,9 +185,14 @@ impl RecvBuffer for &mut Vec<u32> {
 }
 
 /// Saved pack context.
-struct PackContext {
-    pack: Option<Box<dyn CustomPack>>,
-    unpack: Option<Box<dyn CustomUnpack>>,
+enum PackContextType {
+    Pack(Box<dyn PackContext>),
+    Unpack(Box<dyn UnpackContext>),
+}
+
+enum PackState {
+    Pack(Box<dyn Pack>),
+    Unpack(Box<dyn Unpack>),
 }
 
 /// NOTE: count is the number of datatype elements (NOT bytes).
@@ -174,7 +203,15 @@ unsafe extern "C" fn start_pack(
 ) -> *mut c_void {
     debug!("datatype::start_pack()");
 
-    context
+    let context = context as *mut PackContextType;
+    match &mut (*context) {
+        PackContextType::Pack(pack_ctx) => {
+            let mut packer = pack_ctx.packer();
+            let packer = PackState::Pack(packer);
+            Box::into_raw(Box::new(packer)) as *mut _
+        }
+        _ => panic!("pack context invalid"),
+    }
 }
 
 /// NOTE: count is the number of datatype elements (NOT bytes).
@@ -185,24 +222,25 @@ unsafe extern "C" fn start_unpack(
 ) -> *mut c_void {
     debug!("datatype::start_unpack()");
 
-    context
+    let context = context as *mut PackContextType;
+    match &mut (*context) {
+        PackContextType::Unpack(unpack_ctx) => {
+            let mut unpacker = unpack_ctx.unpacker();
+            let unpacker = PackState::Unpack(unpacker);
+            Box::into_raw(Box::new(unpacker)) as *mut _
+        }
+        _ => panic!("unpack context invalid"),
+    }
 }
 
 /// Determine the packed size of the datatype.
 unsafe extern "C" fn packed_size(state: *mut c_void) -> usize {
     debug!("datatype::packed_size()");
 
-    let state = state as *mut PackContext;
-    let size = if let Some(pack) = (*state).pack.as_ref() {
-        pack
-            .packed_size()
-            .expect("failed to get packed size of buffer")
-    } else if let Some(unpack) = (*state).unpack.as_ref() {
-        unpack
-            .packed_size()
-            .expect("failed to get packed size of buffer")
-    } else {
-        panic!("Missing pack and unpack implementations for querying packed_size");
+    let state = state as *mut PackState;
+    let size = match &(*state) {
+        PackState::Pack(packer) => packer.packed_size().expect("failed to get packed size of buffer"),
+        PackState::Unpack(unpacker) => unpacker.packed_size().expect("failed to get packed size of buffer"),
     };
     debug!("packed_size: {}", size);
     size
@@ -217,15 +255,13 @@ unsafe extern "C" fn pack(
 ) -> usize {
     debug!("datatype::pack()");
 
-    let state = state as *mut PackContext;
+    let state = state as *mut PackState;
     let dest = dest as *mut u8;
     let dest_slice = std::slice::from_raw_parts_mut(dest, max_length);
-    (*state)
-        .pack
-        .as_mut()
-        .expect("missing pack object")
-        .pack(offset, dest_slice)
-        .expect("failed to pack buffer")
+    match &mut (*state) {
+        PackState::Pack(packer) => packer.pack(offset, dest_slice).expect("failed to pack buffer"),
+        _ => panic!("Invalid pack state"),
+    }
 }
 
 /// NOTE: offset and length are in bytes.
@@ -237,27 +273,25 @@ unsafe extern "C" fn unpack(
 ) -> ucs_status_t {
     debug!("datatype::unpack(state=., offset={}, src=., length={})", offset, length);
 
-    let state = state as *mut PackContext;
+    let state = state as *mut PackState;
     let src = src as *mut u8;
     let src_slice = std::slice::from_raw_parts(src, length);
-    (*state)
-        .unpack
-        .as_mut()
-        .expect("missing unpack object")
-        .unpack(offset, src_slice)
-        .expect("failed to unpack buffer");
+    match &mut (*state) {
+        PackState::Unpack(unpacker) => unpacker.unpack(offset, src_slice).expect("failed to unpack buffer"),
+        _ => panic!("Invalid unpack state"),
+    }
     UCS_OK
 }
 
 unsafe extern "C" fn finish(state: *mut c_void) {
     debug!("datatype::finish()");
 
-    let state = state as *mut PackContext;
+    let state = state as *mut PackState;
     let _ = Box::from_raw(state);
 }
 
 /// Create a new UCX datatype.
-unsafe fn create_generic_datatype(context: *mut PackContext) -> Result<ucp_datatype_t> {
+unsafe fn create_generic_datatype(context: *mut PackContextType) -> Result<ucp_datatype_t> {
     let ops = ucp_generic_dt_ops_t {
         start_pack: Some(start_pack),
         start_unpack: Some(start_unpack),

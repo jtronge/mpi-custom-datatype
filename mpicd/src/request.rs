@@ -1,7 +1,7 @@
 //! Request object.
 use std::ffi::c_void;
 use mpicd_ucx_sys::{rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status, ucp_tag_recv_info_t, ucp_request_free, ucs_status_t, UCS_OK, UCS_INPROGRESS};
-use crate::status_to_string;
+use crate::{status_to_string, datatype::UCXDatatype};
 
 /// Request status value.
 #[derive(Clone, Debug, PartialEq)]
@@ -77,14 +77,19 @@ impl Drop for Request {
 
 /// Request data struct used to hold callback user data for a request.
 pub(crate) struct RequestData {
+    /// Request boolean set in the callback.
     complete: bool,
+
+    /// Wraps created datatype and extra context info.
+    datatype: UCXDatatype,
 }
 
 impl RequestData {
     /// Create a new request data struct for callback user data.
-    pub fn new() -> RequestData {
+    pub fn new(datatype: UCXDatatype) -> RequestData {
         RequestData {
             complete: false,
+            datatype,
         }
     }
 }

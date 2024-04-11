@@ -1,9 +1,7 @@
 //! Datatype management code.
 use std::ffi::{c_int, c_void};
 use crate::c;
-use mpicd::{
-    datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod, CustomPack, CustomUnpack, DatatypeResult, DatatypeError},
-};
+use mpicd::datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod, PackContext, UnpackContext, Pack, Unpack, DatatypeResult, DatatypeError};
 use crate::{consts, with_context};
 use log::debug;
 
@@ -75,7 +73,18 @@ struct CustomBufferPacker {
     resume: *mut c_void,
 }
 
-impl CustomPack for CustomBufferPacker {
+impl PackContext for CustomBufferPacker {
+    fn packer(&mut self) -> Box<dyn Pack> {
+        Box::new(CustomBufferPacker {
+            ptr: self.ptr,
+            len: self.len,
+            custom_datatype: self.custom_datatype,
+            resume: std::ptr::null_mut(),
+        })
+    }
+}
+
+impl Pack for CustomBufferPacker {
     /// Pack the datatype by using the externally provided C functions.
     fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<usize> {
         debug!("calling c packfn");
@@ -126,7 +135,18 @@ struct CustomBufferUnpacker {
     resume: *mut c_void,
 }
 
-impl CustomUnpack for CustomBufferUnpacker {
+impl UnpackContext for CustomBufferUnpacker {
+    fn unpacker(&mut self) -> Box<dyn Unpack> {
+        Box::new(CustomBufferUnpacker {
+            ptr: self.ptr,
+            len: self.len,
+            custom_datatype: self.custom_datatype,
+            resume: std::ptr::null_mut(),
+        })
+    }
+}
+
+impl Unpack for CustomBufferUnpacker {
     fn unpack(&mut self, offset: usize, source: &[u8]) -> DatatypeResult<()> {
         debug!("calling c unpackfn");
         unsafe {

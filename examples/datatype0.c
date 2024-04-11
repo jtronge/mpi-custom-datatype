@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <mpi.h>
 
-#define COUNT 1000
+#define COUNT 1
 
 /* Struct to be packed */
 struct pack_type {
@@ -47,9 +47,9 @@ int main(void)
             buf[i].b[1] = 0.2 * i;
         }
 
-        MPI_Send(buf, COUNT, cd, 1, 0, MPI_COMM_WORLD);
+        MPI_Send(buf, COUNT * sizeof(*buf), cd, 1, 0, MPI_COMM_WORLD);
     } else {
-        MPI_Recv(buf, COUNT, cd, 0, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(buf, COUNT * sizeof(*buf), cd, 0, 0, MPI_COMM_WORLD, &status);
         printf("first element = { .a = %d, .b[] = {%g, %g} }\n", buf[0].a, buf[0].b[0], buf[0].b[1]);
     }
 
