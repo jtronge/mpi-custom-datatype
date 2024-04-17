@@ -9,12 +9,11 @@
 #include <mpi.h>
 
 #define COUNT 1000000
-
-/* Struct to be packed */
+/* Size of one packed element */
+#define PACKED_ELEMENT_SIZE sizeof(int)
 
 static int packfn(MPI_Count src_size, const void *src,
-                  MPI_Count dst_size, void *dst,
-                  MPI_Count *used, void **resume);
+                  MPI_Count dst_size, void *dst, void **resume);
 static int unpackfn(MPI_Count src_count, const void *src,
                     MPI_Count dst_size, void *dst, void **resume);
 static int queryfn(const void *buf, MPI_Count size, MPI_Count *packed_size);
@@ -31,7 +30,7 @@ int main(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* Create the type */
-    MPI_Type_create_custom(&packfn, &unpackfn, &queryfn, NULL, 0, &cd);
+    MPI_Type_create_custom(&packfn, &unpackfn, &queryfn, PACKED_ELEMENT_SIZE, NULL, 0, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 
@@ -54,16 +53,13 @@ int main(void)
     return 0;
 }
 
-/* Size of one packed element */
-#define PACKED_ELEMENT_SIZE sizeof(double)
-
 static int packfn(MPI_Count src_size, const void *src,
-                  MPI_Count dst_size, void *dst,
-                  MPI_Count *used, void **resume)
+                  MPI_Count dst_size, void *dst, void **resume)
 {
     size_t count = dst_size < src_size ? dst_size : src_size;
+    // Dest size should be a multiple of PACKED_ELEMENT_SIZE
     memcpy(dst, src, count);
-    *used = count;
+    // *used = count - 1;
     return 0;
 }
 

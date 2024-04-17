@@ -39,8 +39,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
  *   * Q: When to deallocate the resume pointer, if allocated?
  */
 typedef int (MPI_Type_custom_pack_function)(MPI_Count src_size, const void *src,
-                                            MPI_Count dst_size, void *dst,
-                                            MPI_Count *used, void **resume);
+                                            MPI_Count dst_size, void *dst, void **resume);
 typedef int (MPI_Type_custom_unpack_function)(MPI_Count src_size, const void *src,
                                               MPI_Count dst_size, void *dst,
                                               void **resume);
@@ -53,6 +52,7 @@ typedef int (MPI_Type_custom_reg_function)(const void *src, MPI_Count max_region
 int MPI_Type_create_custom(MPI_Type_custom_pack_function *packfn,
                            MPI_Type_custom_unpack_function *unpackfn,
                            MPI_Type_custom_query_function *queryfn,
+                           MPI_Count packed_elem_size,
                            MPI_Type_custom_reg_function *regfn,
                            MPI_Count reg_count, MPI_Datatype *type);
 

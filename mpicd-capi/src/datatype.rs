@@ -5,12 +5,30 @@ use mpicd::datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod, PackCont
 use crate::{consts, with_context};
 use log::debug;
 
-/// List of conversion functions to be used for a custom datatype.
+/// Custom datatype handling functions for pack code.
 #[derive(Copy, Clone)]
-pub(crate) struct CustomDatatype {
+pub(crate) struct PackInfo {
     packfn: c::PackFn,
     unpackfn: c::UnpackFn,
     queryfn: c::QueryFn,
+    packed_elem_size: usize,
+}
+
+/// Custom datatype handling functions for iovec code.
+#[derive(Copy, Clone)]
+pub(crate) struct IovecInfo {
+    regfn: c::RegFn,
+    reg_count: usize,
+}
+
+/// List of conversion functions to be used for a custom datatype.
+#[derive(Copy, Clone)]
+pub(crate) enum CustomDatatype {
+    /// The datatype is to be packed.
+    Pack(PackInfo),
+
+    /// The datatype can be sent as an iovec.
+    Iovec(IovecInfo),
 }
 
 /// Custom buffer type for utilizing pack and unpack functions in C.
@@ -38,12 +56,17 @@ impl SendBuffer for CustomBuffer {
     }
 
     fn pack_method(&self) -> PackMethod {
-        PackMethod::Pack(Box::new(CustomBufferPacker {
-            ptr: self.ptr,
-            len: self.len,
-            custom_datatype: self.custom_datatype,
-            resume: std::ptr::null_mut(),
-        }))
+        match self.custom_datatype {
+            CustomDatatype::Pack(pack_info) => {
+                PackMethod::Pack(Box::new(CustomBufferPacker {
+                    ptr: self.ptr,
+                    len: self.len,
+                    pack_info,
+                    resume: std::ptr::null_mut(),
+                }))
+            }
+            CustomDatatype::Iovec(iovec_info) => panic!("iovec not supported yet"),
+        }
     }
 }
 
@@ -57,19 +80,31 @@ impl RecvBuffer for CustomBuffer {
     }
 
     fn unpack_method(&mut self) -> UnpackMethod {
-        UnpackMethod::Unpack(Box::new(CustomBufferUnpacker {
-            ptr: self.ptr_mut,
-            len: self.len,
-            custom_datatype: self.custom_datatype,
-            resume: std::ptr::null_mut(),
-        }))
+        match self.custom_datatype {
+            CustomDatatype::Pack(pack_info) => {
+                UnpackMethod::Unpack(Box::new(CustomBufferUnpacker {
+                    ptr: self.ptr_mut,
+                    len: self.len,
+                    pack_info,
+                    resume: std::ptr::null_mut(),
+                }))
+            }
+            CustomDatatype::Iovec(iovec_info) => panic!("iovec not supported yet"),
+        }
     }
 }
 
 struct CustomBufferPacker {
+    /// Data pointer.
     ptr: *const u8,
+
+    /// Length of the input buffer.
     len: usize,
-    custom_datatype: CustomDatatype,
+
+    /// Packing functions and other metadata.
+    pack_info: PackInfo,
+
+    /// Resume pointer for packing method.
     resume: *mut c_void,
 }
 
@@ -78,52 +113,58 @@ impl PackContext for CustomBufferPacker {
         Box::new(CustomBufferPacker {
             ptr: self.ptr,
             len: self.len,
-            custom_datatype: self.custom_datatype,
+            pack_info: self.pack_info,
             resume: std::ptr::null_mut(),
         })
     }
 }
 
+fn query_packed_size(queryfn: c::QueryFn, ptr: *const c_void, len: usize) -> DatatypeResult<usize> {
+    let mut packed_size = 0;
+    let func = queryfn.expect("query function is missing");
+    let ret = func(
+        ptr,
+        len,
+        &mut packed_size,
+    );
+
+    if ret == 0 {
+        Ok(packed_size)
+    } else {
+        Err(DatatypeError::PackError)
+    }
+}
+
 impl Pack for CustomBufferPacker {
     /// Pack the datatype by using the externally provided C functions.
-    fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<usize> {
+    fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<()> {
         debug!("calling c packfn");
-        unsafe {
+
+        // Pack the data.
+        let ret = unsafe {
             assert!(offset < self.len);
             let ptr = self.ptr.offset(offset as isize);
-            let mut used = 0;
-            let ret = (self.custom_datatype.packfn)(
+            let func = self.pack_info.packfn.expect("pack function is missing");
+            func(
                 self.len - offset,
                 ptr as *const _,
                 dest.len(),
                 dest.as_mut_ptr() as *mut _,
-                &mut used,
                 &mut self.resume,
-            );
+            )
+        };
 
-            if ret == 0 {
-                Ok(used)
-            } else {
-                Err(DatatypeError::PackError)
-            }
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(DatatypeError::PackError)
         }
     }
 
     /// Return the packed size using the externally provided C functions.
     fn packed_size(&self) -> DatatypeResult<usize> {
         unsafe {
-            let mut packed_size = 0;
-            let ret = (self.custom_datatype.queryfn)(
-                self.ptr as *const _,
-                self.len,
-                &mut packed_size,
-            );
-
-            if ret == 0 {
-                Ok(packed_size)
-            } else {
-                Err(DatatypeError::PackError)
-            }
+            query_packed_size(self.pack_info.queryfn, self.ptr as *const _, self.len)
         }
     }
 }
@@ -131,7 +172,7 @@ impl Pack for CustomBufferPacker {
 struct CustomBufferUnpacker {
     ptr: *mut u8,
     len: usize,
-    custom_datatype: CustomDatatype,
+    pack_info: PackInfo,
     resume: *mut c_void,
 }
 
@@ -140,7 +181,7 @@ impl UnpackContext for CustomBufferUnpacker {
         Box::new(CustomBufferUnpacker {
             ptr: self.ptr,
             len: self.len,
-            custom_datatype: self.custom_datatype,
+            pack_info: self.pack_info,
             resume: std::ptr::null_mut(),
         })
     }
@@ -152,7 +193,8 @@ impl Unpack for CustomBufferUnpacker {
         unsafe {
             assert!(offset < self.len);
             let ptr = self.ptr.offset(offset as isize);
-            let ret = (self.custom_datatype.unpackfn)(
+            let func = self.pack_info.unpackfn.expect("query function is missing");
+            let ret = func(
                 source.len(),
                 source.as_ptr() as *const _,
                 self.len - offset,
@@ -171,18 +213,7 @@ impl Unpack for CustomBufferUnpacker {
     /// Return the packed size using the externally provided C functions.
     fn packed_size(&self) -> DatatypeResult<usize> {
         unsafe {
-            let mut packed_size = 0;
-            let ret = (self.custom_datatype.queryfn)(
-                self.ptr as *const _,
-                self.len,
-                &mut packed_size,
-            );
-
-            if ret == 0 {
-                Ok(packed_size)
-            } else {
-                Err(DatatypeError::PackError)
-            }
+            query_packed_size(self.pack_info.queryfn, self.ptr as *const _, self.len)
         }
     }
 }
@@ -233,21 +264,26 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
     packfn: c::PackFn,
     unpackfn: c::UnpackFn,
     queryfn: c::QueryFn,
-    _regfn: c::RegFn,
-    _reg_count: c::Count,
+    packed_elem_size: usize,
+    regfn: c::RegFn,
+    reg_count: c::Count,
     datatype: *mut c::Datatype,
 ) -> c::ReturnStatus {
     with_context(move |_, cctx| {
-        let custom_datatype = CustomDatatype {
-            packfn,
-            unpackfn,
-            queryfn,
+        let custom_datatype = if regfn.is_some() {
+            CustomDatatype::Iovec(IovecInfo {
+                regfn,
+                reg_count,
+            })
+        } else {
+            CustomDatatype::Pack(PackInfo {
+                packfn,
+                unpackfn,
+                queryfn,
+                packed_elem_size,
+            })
         };
-        *datatype = cctx.add_custom_datatype(CustomDatatype {
-            packfn,
-            unpackfn,
-            queryfn,
-        });
+        *datatype = cctx.add_custom_datatype(custom_datatype);
         consts::SUCCESS
     })
 }

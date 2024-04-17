@@ -71,8 +71,8 @@ pub trait UnpackContext {
 
 /// Custom pack a message datatype into a buffer.
 pub trait Pack {
-    /// Pack the datatype, returning number of bytes used.
-    fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<usize>;
+    /// Pack the datatype.
+    fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<()>;
 
     /// Return the total packed size of the datatype.
     fn packed_size(&self) -> DatatypeResult<usize>;
@@ -246,14 +246,18 @@ unsafe extern "C" fn packed_size(state: *mut c_void) -> usize {
     size
 }
 
-/// NOTE: offset and max_length are in bytes.
+/// Using the 'state' object, pack 'max_length' data into 'dest', returning the
+/// number of bytes packed.
+///
+/// NOTE: This seems to have problems if the number of bytes packed are less
+///       than `max_length`.
 unsafe extern "C" fn pack(
     state: *mut c_void,
     offset: usize,
     dest: *mut c_void,
     max_length: usize,
 ) -> usize {
-    debug!("datatype::pack()");
+    debug!("datatype::pack(offset={}, dst={:?}, max_length={})", offset, dest, max_length);
 
     let state = state as *mut PackState;
     let dest = dest as *mut u8;
@@ -262,6 +266,9 @@ unsafe extern "C" fn pack(
         PackState::Pack(packer) => packer.pack(offset, dest_slice).expect("failed to pack buffer"),
         _ => panic!("Invalid pack state"),
     }
+
+    // Must always pack max_length due to bug.
+    max_length
 }
 
 /// NOTE: offset and length are in bytes.
@@ -271,7 +278,7 @@ unsafe extern "C" fn unpack(
     src: *const c_void,
     length: usize,
 ) -> ucs_status_t {
-    debug!("datatype::unpack(state=., offset={}, src=., length={})", offset, length);
+    debug!("datatype::unpack(state=., offset={}, src={:?}, length={})", offset, src, length);
 
     let state = state as *mut PackState;
     let src = src as *mut u8;
