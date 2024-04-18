@@ -1,10 +1,9 @@
 use mpicd::{
     communicator::Communicator,
-    datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod},
 };
 use std::ffi::{c_int, c_void};
 use crate::{
-    datatype::{ByteRecvBuffer, CustomBuffer, ByteSendBuffer},
+    datatype::{BufferPointer, CustomBuffer, ByteBuffer},
     c, consts, with_context,
 };
 
@@ -22,8 +21,7 @@ pub unsafe extern "C" fn MPI_Send(
     with_context(move |ctx, cctx| {
         let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
             let buffer = CustomBuffer {
-                ptr_mut: std::ptr::null_mut(),
-                ptr: buf as *const _,
+                ptr: BufferPointer::Const(buf as *const _),
                 len: count as usize,
                 custom_datatype,
             };
@@ -34,8 +32,8 @@ pub unsafe extern "C" fn MPI_Send(
             // Assume MPI_BYTE
             assert_eq!(datatype, consts::BYTE);
 
-            let buffer = ByteSendBuffer {
-                ptr: buf as *const _,
+            let buffer = ByteBuffer {
+                ptr: BufferPointer::Const(buf as *const _),
                 size: count.try_into().unwrap(),
             };
             ctx
@@ -62,8 +60,7 @@ pub unsafe extern "C" fn MPI_Recv(
     with_context(move |ctx, cctx| {
         let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
             let buffer = CustomBuffer {
-                ptr_mut: buf as *mut _,
-                ptr: std::ptr::null(),
+                ptr: BufferPointer::Mut(buf as *mut _),
                 len: count as usize,
                 custom_datatype,
             };
@@ -74,8 +71,8 @@ pub unsafe extern "C" fn MPI_Recv(
             // Assume MPI_BYTE
             assert_eq!(datatype, consts::BYTE);
 
-            let buffer = ByteRecvBuffer {
-                ptr: buf as *mut _,
+            let buffer = ByteBuffer {
+                ptr: BufferPointer::Mut(buf as *mut _),
                 size: count.try_into().unwrap(),
             };
             ctx

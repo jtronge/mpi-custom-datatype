@@ -1,6 +1,6 @@
 //! Code abstracting out Rust communicators.
 use crate::RequestStatus;
-use crate::datatype::{SendBuffer, RecvBuffer};
+use crate::datatype::Buffer;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Error {
@@ -20,10 +20,10 @@ pub trait Communicator {
     fn rank(&self) -> i32;
 
     /// Do a non-blocking send of data to the destination with specified tag.
-    unsafe fn isend<B: SendBuffer>(&self, data: B, dest: i32, tag: i32) -> Result<Self::Request>;
+    unsafe fn isend<B: Buffer>(&self, data: B, dest: i32, tag: i32) -> Result<Self::Request>;
 
     /// Do a non-blocking recv of data from the source with the specified tag.
-    unsafe fn irecv<B: RecvBuffer>(&self, data: B, source: i32, tag: i32) -> Result<Self::Request>;
+    unsafe fn irecv<B: Buffer>(&self, data: B, source: i32, tag: i32) -> Result<Self::Request>;
 
     /// Wait for all requests in list to complete.
     unsafe fn waitall(&self, requests: &[Self::Request]) -> Result<Vec<RequestStatus>>;

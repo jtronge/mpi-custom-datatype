@@ -1,6 +1,5 @@
 //! C context data management code.
 use std::ffi::{c_int, c_void};
-use mpicd::datatype::{SendBuffer, RecvBuffer};
 use crate::{datatype::CustomDatatype, consts, c};
 
 /// C context struct to hold additional context data specific to the C interface.

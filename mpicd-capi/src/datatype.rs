@@ -1,43 +1,22 @@
 //! Datatype management code.
 use std::ffi::{c_int, c_void};
 use crate::c;
-use mpicd::datatype::{SendBuffer, PackMethod, RecvBuffer, UnpackMethod, PackContext, UnpackContext, Pack, Unpack, DatatypeResult, DatatypeError};
+use mpicd::datatype::{
+    Buffer, PackMethod, PackContext,
+    PackState, UnpackState, DatatypeResult, DatatypeError,
+};
 use crate::{consts, with_context};
 use log::debug;
 
-/// Custom datatype handling functions for pack code.
-#[derive(Copy, Clone)]
-pub(crate) struct PackInfo {
-    packfn: c::PackFn,
-    unpackfn: c::UnpackFn,
-    queryfn: c::QueryFn,
-    packed_elem_size: usize,
-}
-
-/// Custom datatype handling functions for iovec code.
-#[derive(Copy, Clone)]
-pub(crate) struct IovecInfo {
-    regfn: c::RegFn,
-    reg_count: usize,
-}
-
-/// List of conversion functions to be used for a custom datatype.
-#[derive(Copy, Clone)]
-pub(crate) enum CustomDatatype {
-    /// The datatype is to be packed.
-    Pack(PackInfo),
-
-    /// The datatype can be sent as an iovec.
-    Iovec(IovecInfo),
+pub(crate) enum BufferPointer {
+    Const(*const u8),
+    Mut(*mut u8),
 }
 
 /// Custom buffer type for utilizing pack and unpack functions in C.
 pub(crate) struct CustomBuffer {
-    /// Mutable pointer, if receive buffer.
-    pub(crate) ptr_mut: *mut u8,
-
-    /// Immutable pointer, if send buffer to be packed.
-    pub(crate) ptr: *const u8,
+    /// Pointer to underlying buffer.
+    pub(crate) ptr: BufferPointer,
 
     /// Length of the buffer in bytes.
     pub(crate) len: usize,
@@ -46,9 +25,19 @@ pub(crate) struct CustomBuffer {
     pub(crate) custom_datatype: CustomDatatype,
 }
 
-impl SendBuffer for CustomBuffer {
+impl Buffer for CustomBuffer {
     fn as_ptr(&self) -> *const u8 {
-        self.ptr
+        match self.ptr {
+            BufferPointer::Const(ptr) => ptr,
+            BufferPointer::Mut(ptr) => ptr,
+        }
+    }
+
+    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+        match self.ptr {
+            BufferPointer::Mut(ptr) => Some(ptr),
+            BufferPointer::Const(_) => None,
+        }
     }
 
     fn count(&self) -> usize {
@@ -56,177 +45,29 @@ impl SendBuffer for CustomBuffer {
     }
 
     fn pack_method(&self) -> PackMethod {
-        match self.custom_datatype {
-            CustomDatatype::Pack(pack_info) => {
-                PackMethod::Pack(Box::new(CustomBufferPacker {
-                    ptr: self.ptr,
-                    len: self.len,
-                    pack_info,
-                    resume: std::ptr::null_mut(),
-                }))
-            }
-            CustomDatatype::Iovec(iovec_info) => panic!("iovec not supported yet"),
-        }
-    }
-}
-
-impl RecvBuffer for CustomBuffer {
-    fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.ptr_mut
-    }
-
-    fn count(&self) -> usize {
-        self.len
-    }
-
-    fn unpack_method(&mut self) -> UnpackMethod {
-        match self.custom_datatype {
-            CustomDatatype::Pack(pack_info) => {
-                UnpackMethod::Unpack(Box::new(CustomBufferUnpacker {
-                    ptr: self.ptr_mut,
-                    len: self.len,
-                    pack_info,
-                    resume: std::ptr::null_mut(),
-                }))
-            }
-            CustomDatatype::Iovec(iovec_info) => panic!("iovec not supported yet"),
-        }
-    }
-}
-
-struct CustomBufferPacker {
-    /// Data pointer.
-    ptr: *const u8,
-
-    /// Length of the input buffer.
-    len: usize,
-
-    /// Packing functions and other metadata.
-    pack_info: PackInfo,
-
-    /// Resume pointer for packing method.
-    resume: *mut c_void,
-}
-
-impl PackContext for CustomBufferPacker {
-    fn packer(&mut self) -> Box<dyn Pack> {
-        Box::new(CustomBufferPacker {
-            ptr: self.ptr,
-            len: self.len,
-            pack_info: self.pack_info,
-            resume: std::ptr::null_mut(),
-        })
-    }
-}
-
-fn query_packed_size(queryfn: c::QueryFn, ptr: *const c_void, len: usize) -> DatatypeResult<usize> {
-    let mut packed_size = 0;
-    let func = queryfn.expect("query function is missing");
-    let ret = func(
-        ptr,
-        len,
-        &mut packed_size,
-    );
-
-    if ret == 0 {
-        Ok(packed_size)
-    } else {
-        Err(DatatypeError::PackError)
-    }
-}
-
-impl Pack for CustomBufferPacker {
-    /// Pack the datatype by using the externally provided C functions.
-    fn pack(&mut self, offset: usize, dest: &mut [u8]) -> DatatypeResult<()> {
-        debug!("calling c packfn");
-
-        // Pack the data.
-        let ret = unsafe {
-            assert!(offset < self.len);
-            let ptr = self.ptr.offset(offset as isize);
-            let func = self.pack_info.packfn.expect("pack function is missing");
-            func(
-                self.len - offset,
-                ptr as *const _,
-                dest.len(),
-                dest.as_mut_ptr() as *mut _,
-                &mut self.resume,
-            )
-        };
-
-        if ret == 0 {
-            Ok(())
-        } else {
-            Err(DatatypeError::PackError)
-        }
-    }
-
-    /// Return the packed size using the externally provided C functions.
-    fn packed_size(&self) -> DatatypeResult<usize> {
-        unsafe {
-            query_packed_size(self.pack_info.queryfn, self.ptr as *const _, self.len)
-        }
-    }
-}
-
-struct CustomBufferUnpacker {
-    ptr: *mut u8,
-    len: usize,
-    pack_info: PackInfo,
-    resume: *mut c_void,
-}
-
-impl UnpackContext for CustomBufferUnpacker {
-    fn unpacker(&mut self) -> Box<dyn Unpack> {
-        Box::new(CustomBufferUnpacker {
-            ptr: self.ptr,
-            len: self.len,
-            pack_info: self.pack_info,
-            resume: std::ptr::null_mut(),
-        })
-    }
-}
-
-impl Unpack for CustomBufferUnpacker {
-    fn unpack(&mut self, offset: usize, source: &[u8]) -> DatatypeResult<()> {
-        debug!("calling c unpackfn");
-        unsafe {
-            assert!(offset < self.len);
-            let ptr = self.ptr.offset(offset as isize);
-            let func = self.pack_info.unpackfn.expect("query function is missing");
-            let ret = func(
-                source.len(),
-                source.as_ptr() as *const _,
-                self.len - offset,
-                ptr as *mut _,
-                &mut self.resume,
-            );
-
-            if ret == 0 {
-                Ok(())
-            } else {
-                Err(DatatypeError::UnpackError)
-            }
-        }
-    }
-
-    /// Return the packed size using the externally provided C functions.
-    fn packed_size(&self) -> DatatypeResult<usize> {
-        unsafe {
-            query_packed_size(self.pack_info.queryfn, self.ptr as *const _, self.len)
-        }
+        PackMethod::Custom(Box::new(self.custom_datatype))
     }
 }
 
 /// Send buffer to be used for MPI_BYTE types.
-pub(crate) struct ByteSendBuffer {
-    pub(crate) ptr: *const u8,
+pub(crate) struct ByteBuffer {
+    pub(crate) ptr: BufferPointer,
     pub(crate) size: usize,
 }
 
-impl SendBuffer for ByteSendBuffer {
+impl Buffer for ByteBuffer {
     fn as_ptr(&self) -> *const u8 {
-        self.ptr
+        match self.ptr {
+            BufferPointer::Const(ptr) => ptr,
+            BufferPointer::Mut(ptr) => ptr,
+        }
+    }
+
+    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+        match self.ptr {
+            BufferPointer::Mut(ptr) => Some(ptr),
+            BufferPointer::Const(_) => None,
+        }
     }
 
     fn count(&self) -> usize {
@@ -238,52 +79,157 @@ impl SendBuffer for ByteSendBuffer {
     }
 }
 
-/// Receive buffer to be used for MPI_BYTE types.
-pub(crate) struct ByteRecvBuffer {
-    pub(crate) ptr: *mut u8,
-    pub(crate) size: usize,
+#[derive(Copy, Clone)]
+pub(crate) struct CustomDatatypeVTable {
+    pack_statefn: c::PackStateFn,
+    unpack_statefn: c::UnpackStateFn,
+    queryfn: c::QueryFn,
+    packfn: c::PackFn,
+    unpackfn: c::UnpackFn,
+    pack_freefn: c::PackStateFreeFn,
+    unpack_freefn: c::UnpackStateFreeFn,
 }
 
-impl RecvBuffer for ByteRecvBuffer {
-    fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.ptr
+/// Custom datatype vtable and context info.
+#[derive(Copy, Clone)]
+pub(crate) struct CustomDatatype {
+    vtable: CustomDatatypeVTable,
+    context: *mut c_void,
+}
+
+impl PackContext for CustomDatatype {
+    unsafe fn pack_state(&mut self, src: *const u8, count: usize) -> DatatypeResult<Box<dyn PackState>> {
+        let func = self.vtable.pack_statefn.expect("missing pack_state() function pointer");
+        let mut state: *mut c_void = std::ptr::null_mut();
+        let ret = func(self.context, src as *const _, count, &mut state);
+
+        if ret == 0 {
+            Ok(Box::new(CustomPackState {
+                custom_datatype: self.clone(),
+                state,
+            }))
+        } else {
+            Err(DatatypeError::StateError)
+        }
     }
 
-    fn count(&self) -> usize {
-        self.size
+    unsafe fn unpack_state(&mut self, dst: *mut u8, count: usize) -> DatatypeResult<Box<dyn UnpackState>> {
+        let func = self.vtable.unpack_statefn.expect("missing unpack_state() function pointer");
+        let mut state: *mut c_void = std::ptr::null_mut();
+        let ret = func(self.context, dst as *mut _, count, &mut state);
+
+        if ret == 0 {
+            Ok(Box::new(CustomUnpackState {
+                custom_datatype: self.clone(),
+                state,
+            }))
+        } else {
+            Err(DatatypeError::StateError)
+        }
     }
 
-    fn unpack_method(&mut self) -> UnpackMethod {
-        UnpackMethod::Contiguous
+    unsafe fn packed_size(&mut self, buf: *const u8, count: usize) -> DatatypeResult<usize> {
+        let func = self.vtable.queryfn.expect("missing query() function pointer");
+        let mut packed_size = 0;
+        let ret = func(self.context, buf as *const _, count, &mut packed_size);
+        if ret == 0 {
+            Ok(packed_size)
+        } else {
+            Err(DatatypeError::PackedSizeError)
+        }
+    }
+}
+
+struct CustomPackState {
+    custom_datatype: CustomDatatype,
+    state: *mut c_void,
+}
+
+impl PackState for CustomPackState {
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<()> {
+        let func = self.custom_datatype.vtable.packfn.expect("missing pack() function");
+        let ret = func(self.state, offset, dst as *mut _, dst_size);
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(DatatypeError::PackError)
+        }
+    }
+}
+
+impl Drop for CustomPackState {
+    fn drop(&mut self) {
+        unsafe {
+            let func = self.custom_datatype
+                .vtable
+                .pack_freefn
+                .expect("missing pack_free() function");
+            let ret = func(self.state);
+            if ret != 0 {
+                panic!("failed to free custom pack state");
+            }
+        }
+    }
+}
+
+struct CustomUnpackState {
+    custom_datatype: CustomDatatype,
+    state: *mut c_void,
+}
+
+impl UnpackState for CustomUnpackState {
+    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+        let func = self.custom_datatype.vtable.unpackfn.expect("missing unpack() function");
+        let ret = func(self.state, offset, src as *const _, src_size);
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(DatatypeError::UnpackError)
+        }
+    }
+}
+
+impl Drop for CustomUnpackState {
+    fn drop(&mut self) {
+        unsafe {
+            let func = self.custom_datatype
+                .vtable
+                .unpack_freefn
+                .expect("missing unpack_free() function");
+            let ret = func(self.state);
+            if ret != 0 {
+                panic!("failed to free custom unpack state");
+            }
+        }
     }
 }
 
 /// Create a non-dynamic custom MPI_Datatype.
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Type_create_custom(
+    pack_statefn: c::PackStateFn,
+    unpack_statefn: c::UnpackStateFn,
+    queryfn: c::QueryFn,
     packfn: c::PackFn,
     unpackfn: c::UnpackFn,
-    queryfn: c::QueryFn,
-    packed_elem_size: usize,
-    regfn: c::RegFn,
-    reg_count: c::Count,
+    pack_freefn: c::PackStateFreeFn,
+    unpack_freefn: c::UnpackStateFreeFn,
+    context: *mut c_void,
     datatype: *mut c::Datatype,
 ) -> c::ReturnStatus {
     with_context(move |_, cctx| {
-        let custom_datatype = if regfn.is_some() {
-            CustomDatatype::Iovec(IovecInfo {
-                regfn,
-                reg_count,
-            })
-        } else {
-            CustomDatatype::Pack(PackInfo {
+        *datatype = cctx.add_custom_datatype(CustomDatatype {
+            vtable: CustomDatatypeVTable {
+                pack_statefn,
+                unpack_statefn,
+                queryfn,
                 packfn,
                 unpackfn,
-                queryfn,
-                packed_elem_size,
-            })
-        };
-        *datatype = cctx.add_custom_datatype(custom_datatype);
+                pack_freefn,
+                unpack_freefn,
+            },
+            context,
+        });
         consts::SUCCESS
     })
 }

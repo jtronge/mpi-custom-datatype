@@ -1,7 +1,7 @@
 //! Context handle code for an MPI application.
 use crate::{
     communicator::{self, Communicator},
-    datatype::{SendBuffer, RecvBuffer, UCXDatatype},
+    datatype::{Buffer, UCXDatatype},
     request::{self, Request, RequestStatus, RequestData},
     Handle,
 };
@@ -44,7 +44,7 @@ impl Communicator for Context {
         self.handle.borrow().rank as i32
     }
 
-    unsafe fn isend<B: SendBuffer>(
+    unsafe fn isend<B: Buffer>(
         &self,
         data: B,
         dest: i32,
@@ -54,7 +54,7 @@ impl Communicator for Context {
         assert!(dest < (handle.size as i32));
         let endpoint = handle.endpoints[dest as usize].clone();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
-        let datatype = UCXDatatype::new_send_type(&data);
+        let datatype = UCXDatatype::new_type(&data);
         let dt_id = datatype.dt_id();
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
         let param = ucp_request_param_t {
@@ -81,7 +81,7 @@ impl Communicator for Context {
         Ok(req_id)
     }
 
-    unsafe fn irecv<B: RecvBuffer>(
+    unsafe fn irecv<B: Buffer>(
         &self,
         mut data: B,
         source: i32,
@@ -90,7 +90,7 @@ impl Communicator for Context {
         let mut handle = self.handle.borrow_mut();
         assert!(source < (handle.size as i32));
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
-        let datatype = UCXDatatype::new_recv_type(&mut data);
+        let datatype = UCXDatatype::new_type(&mut data);
         let dt_id = datatype.dt_id();
         // Callback info
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
@@ -112,7 +112,7 @@ impl Communicator for Context {
         // NOTE: The correct source rank is encoded in the tag.
         let request = ucp_tag_recv_nbx(
             handle.worker,
-            data.as_mut_ptr() as *mut _,
+            data.as_mut_ptr().expect("missing mutable buffer pointer") as *mut _,
             data.count(),
             encode_tag(source, tag),
             TAG_MASK,

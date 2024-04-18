@@ -12,11 +12,13 @@
 /* Size of one packed element */
 #define PACKED_ELEMENT_SIZE sizeof(int)
 
-static int packfn(MPI_Count src_size, const void *src,
-                  MPI_Count dst_size, void *dst, void **resume);
-static int unpackfn(MPI_Count src_count, const void *src,
-                    MPI_Count dst_size, void *dst, void **resume);
-static int queryfn(const void *buf, MPI_Count size, MPI_Count *packed_size);
+int pack_state(void *context, const void *src, MPI_Count src_count, void **state);
+int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state);
+int query(void *context, const void *buf, MPI_Count count, MPI_Count *size);
+int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size);
+int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size);
+int pack_state_free(void *state);
+int unpack_state_free(void *state);
 
 int main(void)
 {
@@ -30,7 +32,9 @@ int main(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* Create the type */
-    MPI_Type_create_custom(&packfn, &unpackfn, &queryfn, PACKED_ELEMENT_SIZE, NULL, 0, &cd);
+    MPI_Type_create_custom(&pack_state, &unpack_state, &query, &pack,
+                           &unpack, &pack_state_free, &unpack_state_free, NULL,
+                           &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 
@@ -39,10 +43,9 @@ int main(void)
         for (size_t i = 0; i < COUNT; i++) {
             buf[i] = i;
         }
-
-        MPI_Send(buf, COUNT * sizeof(*buf), cd, 1, 0, MPI_COMM_WORLD);
+        MPI_Send(buf, COUNT, cd, 1, 0, MPI_COMM_WORLD);
     } else {
-        MPI_Recv(buf, COUNT * sizeof(*buf), cd, 0, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(buf, COUNT, cd, 0, 0, MPI_COMM_WORLD, &status);
         for (size_t i = 0; i < COUNT; i++) {
             assert(buf[i] == i);
         }
@@ -53,27 +56,66 @@ int main(void)
     return 0;
 }
 
-static int packfn(MPI_Count src_size, const void *src,
-                  MPI_Count dst_size, void *dst, void **resume)
+struct pack_state {
+    const char *src;
+    MPI_Count src_count;
+};
+
+int pack_state(void *context, const void *src, MPI_Count src_count, void **state)
 {
-    size_t count = dst_size < src_size ? dst_size : src_size;
-    // Dest size should be a multiple of PACKED_ELEMENT_SIZE
-    memcpy(dst, src, count);
-    // *used = count - 1;
+    struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
+    state_tmp->src = src;
+    state_tmp->src_count = src_count;
+    *state = state_tmp;
+    printf("pack_state: %x\n", state_tmp);
     return 0;
 }
 
-static int unpackfn(MPI_Count src_size, const void *src,
-                    MPI_Count dst_size, void *dst, void **resume)
+struct unpack_state {
+    char *dst;
+    MPI_Count dst_count;
+};
+
+int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state)
 {
-    /* TODO: What happens if we get a sub buffer of the input, how do we know when to free resume? */
-    size_t count = dst_size < src_size ? dst_size : src_size;
-    memcpy(dst, src, count);
+    struct unpack_state *state_tmp = malloc(sizeof(struct unpack_state));
+    state_tmp->dst = dst;
+    state_tmp->dst_count = dst_count;
+    *state = state_tmp;
     return 0;
 }
 
-static int queryfn(const void *buf, MPI_Count size, MPI_Count *packed_size)
+int query(void *context, const void *buf, MPI_Count count, MPI_Count *packed_size)
 {
-    *packed_size = size;
+    *packed_size = count * sizeof(int);
+    printf("packed_size = %zu\n", *packed_size);
+    return 0;
+}
+
+int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size)
+{
+    struct pack_state *pstate = state;
+    assert((dst_size + offset) < (sizeof(int) * pstate->src_count));
+    memcpy(dst, pstate->src + offset, dst_size);
+    return 0;
+}
+
+int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size)
+{
+    struct unpack_state *ustate = state;
+    assert(offset + src_size <= sizeof(int) * ustate->dst_count);
+    memcpy(ustate->dst + offset, src, src_size);
+    return 0;
+}
+
+int pack_state_free(void *state)
+{
+    free(state);
+    return 0;
+}
+
+int unpack_state_free(void *state)
+{
+    free(state);
     return 0;
 }
