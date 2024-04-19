@@ -146,11 +146,12 @@ struct CustomPackState {
 }
 
 impl PackState for CustomPackState {
-    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<()> {
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
         let func = self.custom_datatype.vtable.packfn.expect("missing pack() function");
-        let ret = func(self.state, offset, dst as *mut _, dst_size);
+        let mut used = 0;
+        let ret = func(self.state, offset, dst as *mut _, dst_size, &mut used);
         if ret == 0 {
-            Ok(())
+            Ok(used)
         } else {
             Err(DatatypeError::PackError)
         }

@@ -54,7 +54,7 @@ pub trait PackContext {
 
 pub trait PackState {
     /// Pack the buffer.
-    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<()>;
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize>;
 }
 
 pub trait UnpackState {
@@ -80,7 +80,7 @@ impl UCXDatatype {
             PackMethod::Contiguous => rust_ucp_dt_make_contig(1) as ucp_datatype_t,
             PackMethod::Custom(context) => {
                 // ctx_ptr is free'd in the drop method for UCXDatatype.
-                let ctx_ptr = Rc::into_raw(Rc::new(PackContextHolder {
+                let ctx_ptr = Box::into_raw(Box::new(PackContextHolder {
                     context,
                 })) as *mut _;
                 let _ = pack_context.insert(ctx_ptr);
@@ -157,10 +157,30 @@ enum State {
 }
 
 struct StateHolder {
+    /// Buffer saved for getting the packed size later.
     buffer: *const u8,
+
+    /// Number of elements in the buffer.
     count: usize,
+
+    /// The saved context.
     context: *mut PackContextHolder,
+
+    /// User-provided pack or unpack state.
     state: State,
+
+    /// Packed size of the buffer.
+    packed_size: Option<usize>,
+}
+
+impl StateHolder {
+    /// Get the packed size for the buffer.
+    unsafe fn get_packed_size(&self) -> usize {
+        (*self.context)
+            .context
+            .packed_size(self.buffer, self.count)
+            .expect("failed to get packed size of buffer")
+    }
 }
 
 /// NOTE: count is the number of datatype elements (NOT bytes).
@@ -180,6 +200,7 @@ unsafe extern "C" fn start_pack(
         count,
         context,
         state: State::Pack(state),
+        packed_size: None,
     })) as *mut _
 }
 
@@ -200,6 +221,7 @@ unsafe extern "C" fn start_unpack(
         count,
         context,
         state: State::Unpack(state),
+        packed_size: None,
     })) as *mut _
 }
 
@@ -208,10 +230,7 @@ unsafe extern "C" fn packed_size(state: *mut c_void) -> usize {
     debug!("datatype::packed_size()");
 
     let state = state as *mut StateHolder;
-    (*(*state).context)
-        .context
-        .packed_size((*state).buffer, (*state).count)
-        .expect("failed to get packed size of buffer")
+    (*state).get_packed_size()
 }
 
 /// Using the 'state' object, pack 'max_length' data into 'dest', returning the
@@ -228,15 +247,27 @@ unsafe extern "C" fn pack(
     debug!("datatype::pack(offset={}, dst={:?}, max_length={})", offset, dest, max_length);
 
     let state = state as *mut StateHolder;
-    match &mut (*state).state {
+
+    let packed_size = if let Some(packed_size) = (*state).packed_size {
+        packed_size
+    } else {
+        let packed_size = (*state).get_packed_size();
+        (*state).packed_size.insert(packed_size);
+        packed_size
+    };
+    assert!(offset < packed_size);
+
+    // Set the max length based on the offset and packed size.
+    let max_length = if (offset + max_length) < packed_size { max_length } else { packed_size - offset };
+    let used = match &mut (*state).state {
         State::Pack(pack) => pack
             .pack(offset, dest as *mut _, max_length)
             .expect("failed to pack buffer"),
         _ => panic!("invalid pack state"),
-    }
+    };
+    assert!(used <= max_length);
 
-    // Must always pack max_length due to bug.
-    max_length
+    used
 }
 
 /// NOTE: offset and length are in bytes.

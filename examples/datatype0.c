@@ -15,7 +15,7 @@
 int pack_state(void *context, const void *src, MPI_Count src_count, void **state);
 int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state);
 int query(void *context, const void *buf, MPI_Count count, MPI_Count *size);
-int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size);
+int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used);
 int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size);
 int pack_state_free(void *state);
 int unpack_state_free(void *state);
@@ -58,29 +58,28 @@ int main(void)
 
 struct pack_state {
     const char *src;
-    MPI_Count src_count;
+    MPI_Count src_size;
 };
 
 int pack_state(void *context, const void *src, MPI_Count src_count, void **state)
 {
     struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
     state_tmp->src = src;
-    state_tmp->src_count = src_count;
+    state_tmp->src_size = src_count * sizeof(int);
     *state = state_tmp;
-    printf("pack_state: %x\n", state_tmp);
     return 0;
 }
 
 struct unpack_state {
     char *dst;
-    MPI_Count dst_count;
+    MPI_Count dst_size;
 };
 
 int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state)
 {
     struct unpack_state *state_tmp = malloc(sizeof(struct unpack_state));
     state_tmp->dst = dst;
-    state_tmp->dst_count = dst_count;
+    state_tmp->dst_size = dst_count * sizeof(int);
     *state = state_tmp;
     return 0;
 }
@@ -88,23 +87,30 @@ int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state)
 int query(void *context, const void *buf, MPI_Count count, MPI_Count *packed_size)
 {
     *packed_size = count * sizeof(int);
-    printf("packed_size = %zu\n", *packed_size);
     return 0;
 }
 
-int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size)
+int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used)
 {
     struct pack_state *pstate = state;
-    assert((dst_size + offset) < (sizeof(int) * pstate->src_count));
-    memcpy(dst, pstate->src + offset, dst_size);
+    size_t rem = dst_size % sizeof(int);
+    size_t size = dst_size - rem;
+
+    memcpy(dst, pstate->src + offset, size);
+    *used = size;
+    printf("packed %zu bytes\n", size);
+
     return 0;
 }
 
 int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size)
 {
     struct unpack_state *ustate = state;
-    assert(offset + src_size <= sizeof(int) * ustate->dst_count);
+    assert(src_size % sizeof(int) == 0);
+
     memcpy(ustate->dst + offset, src, src_size);
+    printf("unpacked %zu bytes\n", src_size);
+
     return 0;
 }
 

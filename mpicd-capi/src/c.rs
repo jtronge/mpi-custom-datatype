@@ -47,6 +47,7 @@ pub type PackFn = Option<
         offset: Count,
         dst: *mut c_void,
         dst_size: Count,
+        used: *mut Count,
     ) -> c_int
 >;
 

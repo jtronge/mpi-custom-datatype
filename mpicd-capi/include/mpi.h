@@ -53,7 +53,8 @@ typedef int (MPI_Type_custom_pack_function)(
     void *state, // State information for packing
     MPI_Count offset, // Virtual offset in bytes into the packed buffer
     void *dst, // Destination buffer
-    MPI_Count dst_size // Number of bytes to be written to destination buffer
+    MPI_Count dst_size, // Number of bytes to be written to destination buffer
+    MPI_Count *used
 );
 typedef int (MPI_Type_custom_unpack_function)(
     void *state, // State information for unpacking
