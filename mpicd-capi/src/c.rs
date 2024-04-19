@@ -67,7 +67,7 @@ pub type PackStateFreeFn = Option<extern "C" fn(state: *mut c_void) -> c_int>;
 /// Free the unpack state.
 pub type UnpackStateFreeFn = Option<extern "C" fn(state: *mut c_void) -> c_int>;
 
-pub type Request = c_int;
+pub type Request = isize;
 
 pub type Comm = c_int;
 

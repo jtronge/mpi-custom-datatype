@@ -6,6 +6,10 @@ typedef size_t MPI_Count;
 /* For simplicity MPI_Comm and other handles are defined to be integers */
 typedef int MPI_Comm;
 typedef int MPI_Datatype;
+
+/* MPI_Request corresponds to Rust's isize */
+typedef intptr_t MPI_Request;
+
 /* Handle constants */
 #define MPI_COMM_WORLD 1
 
@@ -27,6 +31,12 @@ int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
              int tag, MPI_Comm comm);
 int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status);
+int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
+              int tag, MPI_Comm comm, MPI_Request *request);
+int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+              MPI_Comm comm, MPI_Request *request);
+
+int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status *array_of_statuses);
 
 /*
  * All functions return 0 on success and non-zero on failure.
