@@ -3,7 +3,7 @@ use std::mem::MaybeUninit;
 use std::rc::Rc;
 use log::debug;
 use mpicd_ucx_sys::{
-    rust_ucp_dt_make_contig, ucp_datatype_t, ucp_dt_create_generic, ucp_generic_dt_ops_t, ucs_status_t, UCS_OK,
+    rust_ucp_dt_make_contig, rust_ucp_dt_make_iov, ucp_datatype_t, ucp_dt_create_generic, ucp_generic_dt_ops_t, ucp_dt_iov_t, ucs_status_t, UCS_OK,
 };
 use crate::{Result, Error};
 
@@ -24,6 +24,9 @@ pub enum PackMethod {
 
     /// Datatype must be packed with a custom packer.
     Custom(Box<dyn PackContext>),
+
+    /// Iovec datatype.
+    MemRegions(Box<dyn MemRegionsDatatype>),
 }
 
 /// Immutable datatype to send as a message.
@@ -41,6 +44,15 @@ pub trait Buffer {
     fn pack_method(&self) -> PackMethod;
 }
 
+/// Implemented by types that can provide and iovec-send and receive interface,
+/// where the types can be represented as a list of (pointer, size)
+/// regions/fragments of the whole data structure.
+pub trait MemRegionsDatatype {
+    /// Return a vector of memory regions to write into or read from.
+    unsafe fn regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>>;
+}
+
+/// Trait for managing the pack context for a type.
 pub trait PackContext {
     /// Return a PackState pointer to start packing a buffer.
     unsafe fn pack_state(&mut self, src: *const u8, count: usize) -> DatatypeResult<Box<dyn PackState>>;
@@ -69,35 +81,88 @@ pub(crate) struct UCXDatatype {
 
     /// Pointer to a pack context impl that will be used if this is a ucx generic datatype.
     pack_context: Option<*mut PackContextHolder>,
+
+    /// Buffer pointer.
+    ptr: *const u8,
+
+    /// Mutable buffer pointer.
+    ptr_mut: Option<*mut u8>,
+
+    /// Number of elements in buffer.
+    count: usize,
+
+    /// Iovec array, if possible for this type.
+    iovec: Option<Vec<ucp_dt_iov_t>>,
 }
 
 impl UCXDatatype {
-    /// Create a new UCX datatype from the send datatype.
-    pub(crate) unsafe fn new_type<B: Buffer>(data: &B) -> UCXDatatype {
-        let mut pack_context: Option<*mut PackContextHolder> = None;
-
-        let datatype = match data.pack_method() {
-            PackMethod::Contiguous => rust_ucp_dt_make_contig(1) as ucp_datatype_t,
+    /// Create a new UCX datatype from the buffer.
+    pub(crate) unsafe fn new_type<B: Buffer>(data: &B, ptr: *const u8, ptr_mut: Option<*mut u8>, count: usize) -> UCXDatatype {
+        match data.pack_method() {
+            PackMethod::Contiguous => {
+                let datatype = rust_ucp_dt_make_contig(1) as ucp_datatype_t;
+                UCXDatatype {
+                    datatype,
+                    pack_context: None,
+                    ptr,
+                    ptr_mut,
+                    count,
+                    iovec: None,
+                }
+            }
             PackMethod::Custom(context) => {
                 // ctx_ptr is free'd in the drop method for UCXDatatype.
                 let ctx_ptr = Box::into_raw(Box::new(PackContextHolder {
                     context,
                 })) as *mut _;
-                let _ = pack_context.insert(ctx_ptr);
-                create_generic_datatype(ctx_ptr)
-                    .expect("failed to create generic datatype")
-            }
-        };
+                let datatype = create_generic_datatype(ctx_ptr)
+                    .expect("failed to create generic datatype");
 
-        UCXDatatype {
-            datatype,
-            pack_context,
+                UCXDatatype {
+                    datatype,
+                    pack_context: Some(ctx_ptr),
+                    ptr,
+                    ptr_mut,
+                    count,
+                    iovec: None,
+                }
+            }
+            PackMethod::MemRegions(iovec) => {
+                let datatype = rust_ucp_dt_make_iov() as ucp_datatype_t;
+                let iovec: Vec<ucp_dt_iov_t> = iovec
+                    .regions()
+                    .expect("failed to get iovec")
+                    .iter()
+                    .map(|iov| ucp_dt_iov_t { buffer: iov.0 as *mut _, length: iov.1 })
+                    .collect();
+                let count = iovec.len();
+                UCXDatatype {
+                    datatype,
+                    pack_context: None,
+                    ptr: std::ptr::null(),
+                    ptr_mut: None,
+                    count,
+                    iovec: Some(iovec),
+                }
+            }
         }
     }
 
     /// Return the datatype identifier.
     pub(crate) fn dt_id(&self) -> ucp_datatype_t {
         self.datatype
+    }
+
+    pub(crate) fn buf_ptr(&self) -> *const c_void {
+        self.ptr as *const _
+    }
+
+    pub(crate) fn buf_ptr_mut(&self) -> Option<*mut c_void> {
+        self.ptr_mut.map(|ptr| ptr as *mut _)
+    }
+
+    pub(crate) fn buf_count(&self) -> usize {
+        self.count
     }
 }
 

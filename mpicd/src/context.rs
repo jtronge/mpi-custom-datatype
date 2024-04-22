@@ -54,9 +54,15 @@ impl Communicator for Context {
         assert!(dest < (handle.size as i32));
         let endpoint = handle.endpoints[dest as usize].clone();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
-        let datatype = UCXDatatype::new_type(&data);
+
+        let ptr = data.as_ptr();
+        let count = data.count();
+        let datatype = UCXDatatype::new_type(&data, ptr, None, count);
         let dt_id = datatype.dt_id();
+        let ptr = datatype.buf_ptr();
+        let count = datatype.buf_count();
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
+
         let param = ucp_request_param_t {
             op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
                 | UCP_OP_ATTR_FIELD_CALLBACK
@@ -71,8 +77,8 @@ impl Communicator for Context {
 
         let request = ucp_tag_send_nbx(
             endpoint,
-            data.as_ptr() as *const _,
-            data.count(),
+            ptr,
+            count,
             encode_tag(dest, tag),
             &param,
         );
@@ -90,8 +96,15 @@ impl Communicator for Context {
         let mut handle = self.handle.borrow_mut();
         assert!(source < (handle.size as i32));
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
-        let datatype = UCXDatatype::new_type(&mut data);
+
+        let ptr = data.as_ptr();
+        let ptr_mut = data.as_mut_ptr();
+        let count = data.count();
+        let datatype = UCXDatatype::new_type(&mut data, ptr, ptr_mut, count);
         let dt_id = datatype.dt_id();
+        let ptr = datatype.buf_ptr_mut().expect("missing mutable buffer pointer");
+        let count = datatype.buf_count();
+
         // Callback info
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
         let param = ucp_request_param_t {
@@ -112,8 +125,8 @@ impl Communicator for Context {
         // NOTE: The correct source rank is encoded in the tag.
         let request = ucp_tag_recv_nbx(
             handle.worker,
-            data.as_mut_ptr().expect("missing mutable buffer pointer") as *mut _,
-            data.count(),
+            ptr,
+            count,
             encode_tag(source, tag),
             TAG_MASK,
             &param,

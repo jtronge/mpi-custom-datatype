@@ -24,8 +24,8 @@ int main(void)
 {
     int size, rank;
     int *buf;
-    MPI_Status status;
     MPI_Datatype cd; /* Custom datatype */
+    MPI_Status status;
 
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -33,8 +33,8 @@ int main(void)
 
     /* Create the type */
     MPI_Type_create_custom(&pack_state, &unpack_state, &query, &pack,
-                           &unpack, &pack_state_free, &unpack_state_free, NULL,
-                           &cd);
+                           &unpack, &pack_state_free, &unpack_state_free,
+                           NULL, NULL, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 

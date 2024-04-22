@@ -25,7 +25,12 @@ ucs_status_t rust_ucs_ptr_status(const void *ptr)
     return UCS_PTR_STATUS(ptr);
 }
 
-size_t rust_ucp_dt_make_contig(size_t sz)
+ucp_datatype_t rust_ucp_dt_make_contig(size_t sz)
 {
     return ucp_dt_make_contig(sz);
+}
+
+ucp_datatype_t rust_ucp_dt_make_iov(void)
+{
+    return ucp_dt_make_iov();
 }

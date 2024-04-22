@@ -2,8 +2,8 @@
 use std::ffi::{c_int, c_void};
 use crate::c;
 use mpicd::datatype::{
-    Buffer, PackMethod, PackContext,
-    PackState, UnpackState, DatatypeResult, DatatypeError,
+    Buffer, PackMethod, PackContext, PackState, UnpackState, MemRegionsDatatype,
+    DatatypeResult, DatatypeError,
 };
 use crate::{consts, with_context};
 use log::debug;
@@ -45,7 +45,11 @@ impl Buffer for CustomBuffer {
     }
 
     fn pack_method(&self) -> PackMethod {
-        PackMethod::Custom(Box::new(self.custom_datatype))
+        if self.custom_datatype.supports_iovec() {
+            PackMethod::MemRegions(Box::new(self.custom_datatype))
+        } else {
+            PackMethod::Custom(Box::new(self.custom_datatype))
+        }
     }
 }
 
@@ -88,6 +92,7 @@ pub(crate) struct CustomDatatypeVTable {
     unpackfn: c::UnpackFn,
     pack_freefn: c::PackStateFreeFn,
     unpack_freefn: c::UnpackStateFreeFn,
+    regionfn: c::RegionFn,
 }
 
 /// Custom datatype vtable and context info.
@@ -95,6 +100,20 @@ pub(crate) struct CustomDatatypeVTable {
 pub(crate) struct CustomDatatype {
     vtable: CustomDatatypeVTable,
     context: *mut c_void,
+}
+
+impl CustomDatatype {
+    pub(crate) fn supports_iovec(&self) -> bool {
+        self.vtable.regionfn.is_some()
+    }
+}
+
+impl MemRegionsDatatype for CustomDatatype {
+    unsafe fn regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        // TODO: How are the returned buffers freed?
+        let func = self.vtable.regionfn.expect("missing memory region function");
+        Ok(vec![])
+    }
 }
 
 impl PackContext for CustomDatatype {
@@ -215,6 +234,7 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
     unpackfn: c::UnpackFn,
     pack_freefn: c::PackStateFreeFn,
     unpack_freefn: c::UnpackStateFreeFn,
+    regionfn: c::RegionFn,
     context: *mut c_void,
     datatype: *mut c::Datatype,
 ) -> c::ReturnStatus {
@@ -228,6 +248,7 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
                 unpackfn,
                 pack_freefn,
                 unpack_freefn,
+                regionfn,
             },
             context,
         });

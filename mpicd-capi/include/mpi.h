@@ -75,6 +75,20 @@ typedef int (MPI_Type_custom_unpack_function)(
 typedef int (MPI_Type_custom_pack_state_free_function)(void *state);
 typedef int (MPI_Type_custom_unpack_state_free_function)(void *state);
 
+// TODO: How are these region buffers/pointer buffers freed?
+typedef int (MPI_Type_custom_region_function)(
+    // Buffer pointer
+    void *buf,
+    // Number of elements in send buffer
+    MPI_Count count,
+    // Number of regions (out)
+    MPI_Count *region_count,
+    // Lengths of each region (out)
+    MPI_Count reg_lens[],
+    // Pointers to each region (out)
+    void *reg_bases[]
+);
+
 int MPI_Type_create_custom(MPI_Type_custom_pack_state_function *pack_statefn,
                            MPI_Type_custom_unpack_state_function *unpack_statefn,
                            MPI_Type_custom_query_function *queryfn,
@@ -82,6 +96,7 @@ int MPI_Type_create_custom(MPI_Type_custom_pack_state_function *pack_statefn,
                            MPI_Type_custom_unpack_function *unpackfn,
                            MPI_Type_custom_pack_state_free_function *pack_freefn,
                            MPI_Type_custom_unpack_state_free_function *unpack_freefn,
+                           MPI_Type_custom_region_function *regionfn,
                            void *context, // Context pointer to be stored for initializing state
                            MPI_Datatype *type);
 
