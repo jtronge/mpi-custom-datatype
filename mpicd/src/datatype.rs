@@ -12,7 +12,8 @@ pub enum DatatypeError {
     PackError,
     UnpackError,
     PackedSizeError,
-    StateError
+    StateError,
+    RegionError,
 }
 
 pub type DatatypeResult<T> = std::result::Result<T, DatatypeError>;
@@ -49,7 +50,7 @@ pub trait Buffer {
 /// regions/fragments of the whole data structure.
 pub trait MemRegionsDatatype {
     /// Return a vector of memory regions to write into or read from.
-    unsafe fn regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>>;
+    unsafe fn regions(&self, buf: *mut u8, count: usize) -> DatatypeResult<Vec<(*mut u8, usize)>>;
 }
 
 /// Trait for managing the pack context for a type.
@@ -75,7 +76,7 @@ pub trait UnpackState {
 }
 
 /// Send datatype wrapping the ucx type.
-pub(crate) struct UCXDatatype {
+pub(crate) struct UCXBuffer {
     /// Underlying ucx datatype.
     datatype: ucp_datatype_t,
 
@@ -95,13 +96,13 @@ pub(crate) struct UCXDatatype {
     iovec: Option<Vec<ucp_dt_iov_t>>,
 }
 
-impl UCXDatatype {
+impl UCXBuffer {
     /// Create a new UCX datatype from the buffer.
-    pub(crate) unsafe fn new_type<B: Buffer>(data: &B, ptr: *const u8, ptr_mut: Option<*mut u8>, count: usize) -> UCXDatatype {
+    pub(crate) unsafe fn new_type<B: Buffer>(data: &B, ptr: *const u8, ptr_mut: Option<*mut u8>, count: usize) -> UCXBuffer {
         match data.pack_method() {
             PackMethod::Contiguous => {
                 let datatype = rust_ucp_dt_make_contig(1) as ucp_datatype_t;
-                UCXDatatype {
+                UCXBuffer {
                     datatype,
                     pack_context: None,
                     ptr,
@@ -111,14 +112,14 @@ impl UCXDatatype {
                 }
             }
             PackMethod::Custom(context) => {
-                // ctx_ptr is free'd in the drop method for UCXDatatype.
+                // ctx_ptr is free'd in the drop method for UCXBuffer.
                 let ctx_ptr = Box::into_raw(Box::new(PackContextHolder {
                     context,
                 })) as *mut _;
                 let datatype = create_generic_datatype(ctx_ptr)
                     .expect("failed to create generic datatype");
 
-                UCXDatatype {
+                UCXBuffer {
                     datatype,
                     pack_context: Some(ctx_ptr),
                     ptr,
@@ -130,13 +131,13 @@ impl UCXDatatype {
             PackMethod::MemRegions(iovec) => {
                 let datatype = rust_ucp_dt_make_iov() as ucp_datatype_t;
                 let iovec: Vec<ucp_dt_iov_t> = iovec
-                    .regions()
+                    .regions(ptr as *mut _, count)
                     .expect("failed to get iovec")
                     .iter()
                     .map(|iov| ucp_dt_iov_t { buffer: iov.0 as *mut _, length: iov.1 })
                     .collect();
                 let count = iovec.len();
-                UCXDatatype {
+                UCXBuffer {
                     datatype,
                     pack_context: None,
                     ptr: std::ptr::null(),
@@ -153,20 +154,31 @@ impl UCXDatatype {
         self.datatype
     }
 
+    /// Get the buffer pointer.
     pub(crate) fn buf_ptr(&self) -> *const c_void {
-        self.ptr as *const _
+        if let Some(iovec) = self.iovec.as_ref() {
+            iovec.as_ptr() as *const _
+        } else {
+            self.ptr as *const _
+        }
     }
 
+    /// Get the mutable buffer pointer.
     pub(crate) fn buf_ptr_mut(&self) -> Option<*mut c_void> {
-        self.ptr_mut.map(|ptr| ptr as *mut _)
+        if let Some(iovec) = self.iovec.as_ref() {
+            Some(iovec.as_ptr() as *mut _)
+        } else {
+            self.ptr_mut.map(|ptr| ptr as *mut _)
+        }
     }
 
+    /// Get the count of items in the buffer.
     pub(crate) fn buf_count(&self) -> usize {
         self.count
     }
 }
 
-impl Drop for UCXDatatype {
+impl Drop for UCXBuffer {
     fn drop(&mut self) {
         unsafe {
             if let Some(pack_context) = self.pack_context {

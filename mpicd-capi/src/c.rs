@@ -67,9 +67,14 @@ pub type PackStateFreeFn = Option<extern "C" fn(state: *mut c_void) -> c_int>;
 /// Free the unpack state.
 pub type UnpackStateFreeFn = Option<extern "C" fn(state: *mut c_void) -> c_int>;
 
+/// Get the number of memory regions.
+pub type RegionCountFn = Option<
+    extern "C" fn(buf: *mut c_void, count: Count, region_count: *mut Count) -> c_int
+>;
+
 /// Receive handler for the iovec-like API.
 ///
-/// NOTE: One problem with this functioand the iovec interface in general is
+/// NOTE: One problem with this functio and the iovec interface in general is
 ///       the requirement that the buffer always be mutable, even when it will not be
 ///       written to for send functions. As long as the buffer is only written to when
 ///       expected, then I don't think this is a problem, but it could be a source of
@@ -78,9 +83,9 @@ pub type RegionFn = Option<
     extern "C" fn(
         buf: *mut c_void,
         count: usize,
-        region_count: *mut usize,
+        region_count: usize,
         reg_lens: *mut usize,
-        reg_bases: *mut c_void,
+        reg_bases: *mut *mut c_void,
     ) -> c_int
 >;
 

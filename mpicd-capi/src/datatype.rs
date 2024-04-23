@@ -92,6 +92,7 @@ pub(crate) struct CustomDatatypeVTable {
     unpackfn: c::UnpackFn,
     pack_freefn: c::PackStateFreeFn,
     unpack_freefn: c::UnpackStateFreeFn,
+    region_countfn: c::RegionCountFn,
     regionfn: c::RegionFn,
 }
 
@@ -109,10 +110,36 @@ impl CustomDatatype {
 }
 
 impl MemRegionsDatatype for CustomDatatype {
-    unsafe fn regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+    unsafe fn regions(&self, buf: *mut u8, count: usize) -> DatatypeResult<Vec<(*mut u8, usize)>> {
         // TODO: How are the returned buffers freed?
-        let func = self.vtable.regionfn.expect("missing memory region function");
-        Ok(vec![])
+        let region_countfn = self.vtable.region_countfn.expect("missing memory region count function");
+        let mut region_count = 0;
+        let ret = region_countfn(buf as *mut _, count, &mut region_count);
+        if ret != 0 {
+            return Err(DatatypeError::RegionError);
+        }
+
+        let regionfn = self.vtable.regionfn.expect("missing memory region function");
+        let mut reg_lens = vec![0; region_count];
+        let mut reg_bases = vec![std::ptr::null_mut(); region_count];
+        let ret = regionfn(
+            buf as *mut _,
+            count,
+            region_count,
+            reg_lens.as_mut_ptr(),
+            reg_bases.as_mut_ptr(),
+        );
+        if ret != 0 {
+            return Err(DatatypeError::RegionError);
+        }
+
+        Ok(
+            reg_bases
+                .iter()
+                .zip(reg_lens.iter())
+                .map(|(ptr, len)| (*ptr as *mut u8, *len))
+                .collect()
+        )
     }
 }
 
@@ -234,6 +261,7 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
     unpackfn: c::UnpackFn,
     pack_freefn: c::PackStateFreeFn,
     unpack_freefn: c::UnpackStateFreeFn,
+    region_countfn: c::RegionCountFn,
     regionfn: c::RegionFn,
     context: *mut c_void,
     datatype: *mut c::Datatype,
@@ -248,6 +276,7 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
                 unpackfn,
                 pack_freefn,
                 unpack_freefn,
+                region_countfn,
                 regionfn,
             },
             context,

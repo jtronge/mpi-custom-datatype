@@ -1,7 +1,7 @@
 //! Context handle code for an MPI application.
 use crate::{
     communicator::{self, Communicator},
-    datatype::{Buffer, UCXDatatype},
+    datatype::{Buffer, UCXBuffer},
     request::{self, Request, RequestStatus, RequestData},
     Handle,
 };
@@ -57,7 +57,7 @@ impl Communicator for Context {
 
         let ptr = data.as_ptr();
         let count = data.count();
-        let datatype = UCXDatatype::new_type(&data, ptr, None, count);
+        let datatype = UCXBuffer::new_type(&data, ptr, None, count);
         let dt_id = datatype.dt_id();
         let ptr = datatype.buf_ptr();
         let count = datatype.buf_count();
@@ -100,7 +100,7 @@ impl Communicator for Context {
         let ptr = data.as_ptr();
         let ptr_mut = data.as_mut_ptr();
         let count = data.count();
-        let datatype = UCXDatatype::new_type(&mut data, ptr, ptr_mut, count);
+        let datatype = UCXBuffer::new_type(&mut data, ptr, ptr_mut, count);
         let dt_id = datatype.dt_id();
         let ptr = datatype.buf_ptr_mut().expect("missing mutable buffer pointer");
         let count = datatype.buf_count();
