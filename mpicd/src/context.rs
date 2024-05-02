@@ -31,25 +31,13 @@ impl Context {
     pub(crate) fn new(handle: Rc<RefCell<Handle>>) -> Context {
         Context { handle }
     }
-}
 
-impl Communicator for Context {
-    type Request = usize;
-
-    fn size(&self) -> i32 {
-        self.handle.borrow().size as i32
-    }
-
-    fn rank(&self) -> i32 {
-        self.handle.borrow().rank as i32
-    }
-
-    unsafe fn isend<B: Buffer>(
+    unsafe fn internal_isend<B: Buffer>(
         &self,
         data: B,
         dest: i32,
-        tag: i32,
-    ) -> communicator::Result<Self::Request> {
+        tag: u64,
+    ) -> communicator::Result<<Self as Communicator>::Request> {
         let mut handle = self.handle.borrow_mut();
         assert!(dest < (handle.size as i32));
         let endpoint = handle.endpoints[dest as usize].clone();
@@ -79,7 +67,7 @@ impl Communicator for Context {
             endpoint,
             ptr,
             count,
-            encode_tag(dest, tag),
+            tag,
             &param,
         );
 
@@ -87,14 +75,12 @@ impl Communicator for Context {
         Ok(req_id)
     }
 
-    unsafe fn irecv<B: Buffer>(
+    unsafe fn internal_irecv<B: Buffer>(
         &self,
         mut data: B,
-        source: i32,
-        tag: i32,
-    ) -> communicator::Result<Self::Request> {
+        tag: u64,
+    ) -> communicator::Result<<Self as Communicator>::Request> {
         let mut handle = self.handle.borrow_mut();
-        assert!(source < (handle.size as i32));
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
 
         let ptr = data.as_ptr();
@@ -127,13 +113,75 @@ impl Communicator for Context {
             handle.worker,
             ptr,
             count,
-            encode_tag(source, tag),
+            tag,
             TAG_MASK,
             &param,
         );
 
         let req_id = handle.add_request(Request::new(request, Some(req_data)));
         Ok(req_id)
+    }
+}
+
+impl Communicator for Context {
+    type Request = usize;
+
+    fn size(&self) -> i32 {
+        self.handle.borrow().size as i32
+    }
+
+    fn rank(&self) -> i32 {
+        self.handle.borrow().rank as i32
+    }
+
+    /// Barrier operation on all processes.
+    ///
+    /// Uses a simple O(n) algorithm.
+    fn barrier(&self) {
+        unsafe {
+            let size = self.handle.borrow().size as i32;
+            let rank = self.handle.borrow().rank as i32;
+            if rank == 0 {
+                let mut buf = vec![0; 1];
+                let mut reqs = vec![];
+                for i in 1..size {
+                    reqs.push(self.internal_isend(&buf, i, encode_tag(BARRIER_TAG, 0, 0)).expect("failed to get send request"));
+                }
+                self.waitall(&reqs).expect("failed to wait for send requests");
+
+                reqs.clear();
+                for i in 1..size {
+                    reqs.push(self.internal_irecv(&mut buf, encode_tag(BARRIER_TAG, i, 0)).expect("failed to get recv request"));
+                }
+                self.waitall(&reqs).expect("failed to wait for recv requests");
+            } else {
+                let mut buf = vec![0; 1];
+                let req = self.internal_irecv(&mut buf, encode_tag(BARRIER_TAG, 0, 0)).expect("failed to get recv request");
+                self.waitall(&[req]).expect("failed to wait for recv request");
+                let req = self.internal_isend(&buf, 0, encode_tag(BARRIER_TAG, rank, 0)).expect("failed to get send request");
+                self.waitall(&[req]).expect("failed to wait for send request");
+            }
+        }
+    }
+
+    unsafe fn isend<B: Buffer>(
+        &self,
+        data: B,
+        dest: i32,
+        tag: i32,
+    ) -> communicator::Result<Self::Request> {
+        let rank = self.handle.borrow().rank as i32;
+        self.internal_isend(data, dest, encode_tag(0, rank, tag))
+    }
+
+    unsafe fn irecv<B: Buffer>(
+        &self,
+        mut data: B,
+        source: i32,
+        tag: i32,
+    ) -> communicator::Result<Self::Request> {
+        assert!(source < (self.handle.borrow().size as i32));
+        self.internal_irecv(data, encode_tag(0, source, tag))
     }
 
     /// Wait for all requests to complete.
@@ -172,10 +220,16 @@ impl Communicator for Context {
 /// The tag mask used for receive requests; for now all bits are important.
 const TAG_MASK: u64 = !0;
 
+/// Internal tag to be used for barriers.
+const BARRIER_TAG: u8 = 1;
+
 /// Encode a tag into a 64-bit UCX tag.
 #[inline]
-fn encode_tag(rank: i32, tag: i32) -> u64 {
-    let rank = rank as u64;
+fn encode_tag(internal_tag: u8, rank: i32, tag: i32) -> u64 {
+    // The rank should be able to fit into 24 bits.
+    assert!(rank < ((1 << 24) - 1));
+    let internal_tag = internal_tag as u64;
+    let rank = (rank as u64) & 0xFFFFFF;
     let tag = tag as u64;
-    rank << 32 & tag
+    (internal_tag << 56) | (rank << 32) | tag
 }

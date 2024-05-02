@@ -19,6 +19,9 @@ pub trait Communicator {
     /// Return the current rank of the process.
     fn rank(&self) -> i32;
 
+    /// Perform a barrier on the processes.
+    fn barrier(&self);
+
     /// Do a non-blocking send of data to the destination with specified tag.
     unsafe fn isend<B: Buffer>(&self, data: B, dest: i32, tag: i32) -> Result<Self::Request>;
 

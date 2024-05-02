@@ -25,6 +25,8 @@ int MPI_Init(int *argc, char **argv[]);
 int MPI_Finalize(void);
 int MPI_Comm_size(MPI_Comm comm, int *size);
 int MPI_Comm_rank(MPI_Comm comm, int *rank);
+double MPI_Wtime(void);
+int MPI_Barrier(MPI_Comm comm);
 
 /* P2P functions */
 int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,

@@ -83,3 +83,25 @@ pub unsafe extern "C" fn MPI_Comm_rank(comm: c::Comm, rank: *mut c_int) -> c::Re
         consts::ERR_INTERNAL
     }
 }
+
+/// Get a system time.
+#[no_mangle]
+pub unsafe extern "C" fn MPI_Wtime() -> f64 {
+    let time = std::time::SystemTime::now();
+    time
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("failed duration from unix epoch to system time")
+        .as_secs_f64()
+}
+
+/// Block all processes for this communicator until all have reached the given point.
+#[no_mangle]
+pub unsafe extern "C" fn MPI_Barrier(comm: c::Comm) -> c::ReturnStatus {
+    assert_eq!(comm, consts::COMM_WORLD);
+    if let Some((ctx, _)) = CONTEXT.as_ref() {
+        ctx.barrier();
+        consts::SUCCESS
+    } else {
+        consts::ERR_INTERNAL
+    }
+}
