@@ -2,3 +2,5 @@ env
 build
 **/target
 core.*
+*.perf
+*.svg
