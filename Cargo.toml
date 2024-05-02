@@ -7,3 +7,7 @@ members = [
     "mpicd-pmix-sys",
     "mpicd-benchmarks",
 ]
+
+[profile.release]
+# Keep debug symbols for the release build
+strip = "debuginfo"
