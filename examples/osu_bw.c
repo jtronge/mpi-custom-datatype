@@ -6,6 +6,8 @@
  *
  * For detailed copyright and licensing information, please refer to the
  * copyright file COPYRIGHT in the top level OMB directory.
+ *
+ * Modified from the original for use with the mpi-custom-datatype prototype.
  */
 #include <stdlib.h>
 #include <stdio.h>

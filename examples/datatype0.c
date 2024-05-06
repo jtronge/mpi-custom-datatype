@@ -12,13 +12,9 @@
 /* Size of one packed element */
 #define PACKED_ELEMENT_SIZE sizeof(int)
 
-int pack_state(void *context, const void *src, MPI_Count src_count, void **state);
-int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state);
 int query(void *context, const void *buf, MPI_Count count, MPI_Count *size);
-int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used);
-int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size);
-int pack_state_free(void *state);
-int unpack_state_free(void *state);
+int pack(void *state, const void *buf, MPI_Count count, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used);
+int unpack(void *state, void *buf, MPI_Count count, MPI_Count offset, const void *src, MPI_Count src_size);
 
 int main(void)
 {
@@ -32,8 +28,8 @@ int main(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* Create the type */
-    MPI_Type_create_custom(&pack_state, &unpack_state, &query, &pack,
-                           &unpack, &pack_state_free, &unpack_state_free,
+    MPI_Type_create_custom(NULL, NULL, &query, &pack,
+                           &unpack, NULL, NULL,
                            NULL, NULL, NULL, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
@@ -56,72 +52,30 @@ int main(void)
     return 0;
 }
 
-struct pack_state {
-    const char *src;
-    MPI_Count src_size;
-};
-
-int pack_state(void *context, const void *src, MPI_Count src_count, void **state)
-{
-    struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
-    state_tmp->src = src;
-    state_tmp->src_size = src_count * sizeof(int);
-    *state = state_tmp;
-    return 0;
-}
-
-struct unpack_state {
-    char *dst;
-    MPI_Count dst_size;
-};
-
-int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state)
-{
-    struct unpack_state *state_tmp = malloc(sizeof(struct unpack_state));
-    state_tmp->dst = dst;
-    state_tmp->dst_size = dst_count * sizeof(int);
-    *state = state_tmp;
-    return 0;
-}
-
 int query(void *context, const void *buf, MPI_Count count, MPI_Count *packed_size)
 {
     *packed_size = count * sizeof(int);
     return 0;
 }
 
-int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used)
+int pack(void *state, const void *buf, MPI_Count count, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used)
 {
-    struct pack_state *pstate = state;
     size_t rem = dst_size % sizeof(int);
     size_t size = dst_size - rem;
 
-    memcpy(dst, pstate->src + offset, size);
+    memcpy(dst, buf + offset, size);
     *used = size;
     printf("packed %zu bytes\n", size);
 
     return 0;
 }
 
-int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size)
+int unpack(void *state, void *buf, MPI_Count count, MPI_Count offset, const void *src, MPI_Count src_size)
 {
-    struct unpack_state *ustate = state;
     assert(src_size % sizeof(int) == 0);
 
-    memcpy(ustate->dst + offset, src, src_size);
+    memcpy(buf + offset, src, src_size);
     printf("unpacked %zu bytes\n", src_size);
 
-    return 0;
-}
-
-int pack_state_free(void *state)
-{
-    free(state);
-    return 0;
-}
-
-int unpack_state_free(void *state)
-{
-    free(state);
     return 0;
 }

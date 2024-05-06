@@ -63,6 +63,8 @@ typedef int (MPI_Type_custom_query_function)(
 );
 typedef int (MPI_Type_custom_pack_function)(
     void *state, // State information for packing
+    const void *buf,
+    MPI_Count count,
     MPI_Count offset, // Virtual offset in bytes into the packed buffer
     void *dst, // Destination buffer
     MPI_Count dst_size, // Number of bytes to be written to destination buffer
@@ -70,6 +72,8 @@ typedef int (MPI_Type_custom_pack_function)(
 );
 typedef int (MPI_Type_custom_unpack_function)(
     void *state, // State information for unpacking
+    void *buf,
+    MPI_Count count,
     MPI_Count offset, // Virtual offset in bytes into the buffer being unpacked
     const void *src, // Incoming buffer to be unpacked
     MPI_Count src_size // Number of bytes in current buffer to be unpacked

@@ -20,8 +20,8 @@ struct datatype1 {
 int pack_state(void *context, const void *src, MPI_Count src_count, void **state);
 int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state);
 int query(void *context, const void *buf, MPI_Count count, MPI_Count *size);
-int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used);
-int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size);
+int pack(void *state, const void *buf, MPI_Count count, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used);
+int unpack(void *state, void *buf, MPI_Count count, MPI_Count offset, const void *src, MPI_Count src_size);
 int pack_state_free(void *state);
 int unpack_state_free(void *state);
 
@@ -66,29 +66,21 @@ int main(void)
 }
 
 struct pack_state {
-    const struct datatype1 *src;
-    MPI_Count src_size;
+    MPI_Count last_offset;
 };
 
 int pack_state(void *context, const void *src, MPI_Count src_count, void **state)
 {
     struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
-    state_tmp->src = src;
-    state_tmp->src_size = src_count * PACKED_ELEMENT_SIZE;
+    state_tmp->last_offset = 0;
     *state = state_tmp;
     return 0;
 }
 
-struct unpack_state {
-    struct datatype1 *dst;
-    MPI_Count dst_size;
-};
-
 int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state)
 {
-    struct unpack_state *state_tmp = malloc(sizeof(struct unpack_state));
-    state_tmp->dst = dst;
-    state_tmp->dst_size = dst_count * PACKED_ELEMENT_SIZE;
+    struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
+    state_tmp->last_offset = 0;
     *state = state_tmp;
     return 0;
 }
@@ -99,38 +91,44 @@ int query(void *context, const void *buf, MPI_Count count, MPI_Count *packed_siz
     return 0;
 }
 
-int pack(void *state, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used)
+int pack(void *state, const void *buf, MPI_Count count, MPI_Count offset,
+         void *dst, MPI_Count dst_size, MPI_Count *used)
 {
     struct pack_state *pstate = state;
+    const struct datatype1 *tbuf = buf;
     size_t size = dst_size - (dst_size % PACKED_ELEMENT_SIZE);
     size_t elem_offset = offset / PACKED_ELEMENT_SIZE;
-    size_t count = size / PACKED_ELEMENT_SIZE;
+    size_t total = size / PACKED_ELEMENT_SIZE;
 
-    assert(offset < pstate->src_size);
+    assert(offset < (count * PACKED_ELEMENT_SIZE));
 
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < total; ++i) {
         size_t tmp_off = i * PACKED_ELEMENT_SIZE;
-        memcpy(dst + tmp_off, &pstate->src[elem_offset + i].a, sizeof(int));
-        memcpy(dst + tmp_off + sizeof(int), pstate->src[elem_offset + i].b, 2 * sizeof(double));
+        memcpy(dst + tmp_off, &tbuf[elem_offset + i].a, sizeof(int));
+        memcpy(dst + tmp_off + sizeof(int), tbuf[elem_offset + i].b, 2 * sizeof(double));
     }
     *used = size;
 
+    pstate->last_offset = offset;
     return 0;
 }
 
-int unpack(void *state, MPI_Count offset, const void *src, MPI_Count src_size)
+int unpack(void *state, void *buf, MPI_Count count, MPI_Count offset,
+           const void *src, MPI_Count src_size)
 {
-    struct unpack_state *ustate = state;
+    struct pack_state *pstate = state;
+    struct datatype1 *tbuf = buf;
     assert(src_size % PACKED_ELEMENT_SIZE == 0);
-    size_t count = src_size / PACKED_ELEMENT_SIZE;
+    size_t total = src_size / PACKED_ELEMENT_SIZE;
     size_t elem_offset = offset / PACKED_ELEMENT_SIZE;
 
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < total; ++i) {
         size_t tmp_off = i * PACKED_ELEMENT_SIZE;
-        memcpy(&ustate->dst[elem_offset + i].a, src + tmp_off, sizeof(int));
-        memcpy(ustate->dst[elem_offset + i].b, src + tmp_off + sizeof(int), 2 * sizeof(double));
+        memcpy(&tbuf[elem_offset + i].a, src + tmp_off, sizeof(int));
+        memcpy(tbuf[elem_offset + i].b, src + tmp_off + sizeof(int), 2 * sizeof(double));
     }
 
+    pstate->last_offset = offset;
     return 0;
 }
 

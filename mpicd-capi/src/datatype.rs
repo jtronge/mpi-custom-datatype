@@ -145,14 +145,19 @@ impl MemRegionsDatatype for CustomDatatype {
 
 impl PackContext for CustomDatatype {
     unsafe fn pack_state(&mut self, src: *const u8, count: usize) -> DatatypeResult<Box<dyn PackState>> {
-        let func = self.vtable.pack_statefn.expect("missing pack_state() function pointer");
         let mut state: *mut c_void = std::ptr::null_mut();
-        let ret = func(self.context, src as *const _, count, &mut state);
+        let ret = if let Some(func) = self.vtable.pack_statefn {
+            func(self.context, src as *const _, count, &mut state)
+        } else {
+            0
+        };
 
         if ret == 0 {
             Ok(Box::new(CustomPackState {
                 custom_datatype: self.clone(),
                 state,
+                buf: src as *const _,
+                count,
             }))
         } else {
             Err(DatatypeError::StateError)
@@ -160,14 +165,19 @@ impl PackContext for CustomDatatype {
     }
 
     unsafe fn unpack_state(&mut self, dst: *mut u8, count: usize) -> DatatypeResult<Box<dyn UnpackState>> {
-        let func = self.vtable.unpack_statefn.expect("missing unpack_state() function pointer");
         let mut state: *mut c_void = std::ptr::null_mut();
-        let ret = func(self.context, dst as *mut _, count, &mut state);
+        let ret = if let Some(func) = self.vtable.unpack_statefn {
+            func(self.context, dst as *mut _, count, &mut state)
+        } else {
+            0
+        };
 
         if ret == 0 {
             Ok(Box::new(CustomUnpackState {
                 custom_datatype: self.clone(),
                 state,
+                buf: dst as *mut _,
+                count,
             }))
         } else {
             Err(DatatypeError::StateError)
@@ -189,13 +199,15 @@ impl PackContext for CustomDatatype {
 struct CustomPackState {
     custom_datatype: CustomDatatype,
     state: *mut c_void,
+    buf: *const c_void,
+    count: usize,
 }
 
 impl PackState for CustomPackState {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
         let func = self.custom_datatype.vtable.packfn.expect("missing pack() function");
         let mut used = 0;
-        let ret = func(self.state, offset, dst as *mut _, dst_size, &mut used);
+        let ret = func(self.state, self.buf, self.count, offset, dst as *mut _, dst_size, &mut used);
         if ret == 0 {
             Ok(used)
         } else {
@@ -207,13 +219,11 @@ impl PackState for CustomPackState {
 impl Drop for CustomPackState {
     fn drop(&mut self) {
         unsafe {
-            let func = self.custom_datatype
-                .vtable
-                .pack_freefn
-                .expect("missing pack_free() function");
-            let ret = func(self.state);
-            if ret != 0 {
-                panic!("failed to free custom pack state");
+            if let Some(func) = self.custom_datatype.vtable.pack_freefn {
+                let ret = func(self.state);
+                if ret != 0 {
+                    panic!("failed to free custom pack state");
+                }
             }
         }
     }
@@ -222,12 +232,14 @@ impl Drop for CustomPackState {
 struct CustomUnpackState {
     custom_datatype: CustomDatatype,
     state: *mut c_void,
+    buf: *mut c_void,
+    count: usize,
 }
 
 impl UnpackState for CustomUnpackState {
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
         let func = self.custom_datatype.vtable.unpackfn.expect("missing unpack() function");
-        let ret = func(self.state, offset, src as *const _, src_size);
+        let ret = func(self.state, self.buf, self.count, offset, src as *const _, src_size);
         if ret == 0 {
             Ok(())
         } else {
@@ -239,13 +251,11 @@ impl UnpackState for CustomUnpackState {
 impl Drop for CustomUnpackState {
     fn drop(&mut self) {
         unsafe {
-            let func = self.custom_datatype
-                .vtable
-                .unpack_freefn
-                .expect("missing unpack_free() function");
-            let ret = func(self.state);
-            if ret != 0 {
-                panic!("failed to free custom unpack state");
+            if let Some(func) = self.custom_datatype.vtable.unpack_freefn {
+                let ret = func(self.state);
+                if ret != 0 {
+                    panic!("failed to free custom unpack state");
+                }
             }
         }
     }

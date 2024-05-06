@@ -44,6 +44,8 @@ pub type QueryFn = Option<
 pub type PackFn = Option<
     extern "C" fn(
         state: *mut c_void,
+        buf: *const c_void,
+        count: Count,
         offset: Count,
         dst: *mut c_void,
         dst_size: Count,
@@ -55,6 +57,8 @@ pub type PackFn = Option<
 pub type UnpackFn = Option<
     extern "C" fn(
         state: *mut c_void,
+        buf: *mut c_void,
+        count: Count,
         offset: Count,
         src: *const c_void,
         src_size: Count,
