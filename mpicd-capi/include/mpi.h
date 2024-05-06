@@ -99,7 +99,9 @@ typedef int (MPI_Type_custom_region_function)(
     // Lengths of each region (out)
     MPI_Count reg_lens[],
     // Pointers to each region (out)
-    void *reg_bases[]
+    void *reg_bases[],
+    // Types for each region
+    MPI_Datatype types[]
 );
 
 int MPI_Type_create_custom(MPI_Type_custom_pack_state_function *pack_statefn,

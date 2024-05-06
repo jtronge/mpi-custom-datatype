@@ -16,7 +16,7 @@ struct iovec_type {
 
 int regions_count(void *buf, MPI_Count count, MPI_Count *region_count);
 int regions(void *buf, MPI_Count count, MPI_Count region_count,
-            MPI_Count reg_lens[], void *reg_bases[]);
+            MPI_Count reg_lens[], void *reg_bases[], MPI_Datatype types[]);
 
 int main(void)
 {
@@ -64,7 +64,7 @@ int regions_count(void *buf, MPI_Count count, MPI_Count *region_count)
 }
 
 int regions(void *buf, MPI_Count count, MPI_Count region_count,
-            MPI_Count reg_lens[], void *reg_bases[])
+            MPI_Count reg_lens[], void *reg_bases[], MPI_Datatype types[])
 {
     struct iovec_type *real_buf = buf;
     assert((2 * count) == region_count);
@@ -73,8 +73,10 @@ int regions(void *buf, MPI_Count count, MPI_Count region_count,
         size_t reg_pos = 2 * i;
         reg_lens[reg_pos] = sizeof(real_buf[i].a);
         reg_bases[reg_pos] = &real_buf[i].a;
+        types[reg_pos] = MPI_BYTE;
         reg_lens[reg_pos + 1] = sizeof(real_buf[i].b);
         reg_bases[reg_pos + 1] = &real_buf[i].b;
+        types[reg_pos + 1] = MPI_BYTE;
     }
     return 0;
 }

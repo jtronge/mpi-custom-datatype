@@ -122,12 +122,15 @@ impl MemRegionsDatatype for CustomDatatype {
         let regionfn = self.vtable.regionfn.expect("missing memory region function");
         let mut reg_lens = vec![0; region_count];
         let mut reg_bases = vec![std::ptr::null_mut(); region_count];
+        // For now don't do anything with the types.
+        let mut types = vec![consts::BYTE; region_count];
         let ret = regionfn(
             buf as *mut _,
             count,
             region_count,
             reg_lens.as_mut_ptr(),
             reg_bases.as_mut_ptr(),
+            types.as_mut_ptr(),
         );
         if ret != 0 {
             return Err(DatatypeError::RegionError);

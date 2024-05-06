@@ -86,10 +86,11 @@ pub type RegionCountFn = Option<
 pub type RegionFn = Option<
     extern "C" fn(
         buf: *mut c_void,
-        count: usize,
-        region_count: usize,
-        reg_lens: *mut usize,
+        count: Count,
+        region_count: Count,
+        reg_lens: *mut Count,
         reg_bases: *mut *mut c_void,
+        types: *mut Datatype,
     ) -> c_int
 >;
 
