@@ -30,3 +30,8 @@ The examples can be run with Open MPI's `mpirun` with a maximum of two ranks
 
 To see debug output from the Rust code, set `RUST_LOG=debug` in your
 environment.
+
+### Rust benchmarks
+
+The Rust benchmarks must be built directly with cargo, by running
+`cargo build --release`. The binaries will be placed in `target/release/`.

@@ -5,7 +5,7 @@ members = [
     "mpicd-capi",
     "mpicd-ucx-sys",
     "mpicd-pmix-sys",
-    "mpicd-benchmarks",
+    "mpicd-rust-benchmarks",
 ]
 
 [profile.release]

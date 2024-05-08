@@ -11,6 +11,12 @@ pub struct LatencyOptions {
     pub max_size: usize,
 }
 
+pub trait LatencyBenchmark {
+    fn init(&mut self, size: usize);
+
+    fn body(&mut self);
+}
+
 /// Generic latency benchmark function. Returns a vec of pairs of the form
 /// (size, microseconds).
 ///
@@ -19,43 +25,28 @@ pub struct LatencyOptions {
 /// communicator respectively.
 ///
 /// Based on the OSU microbenchmarks version for MPI.
-pub fn latency<T, P, B0, B1>(
+pub fn latency(
     opts: LatencyOptions,
-    rank: usize,
-    prepare: P,
-    mut body0: B0,
-    mut body1: B1,
-) -> Vec<(usize, f32)>
-where
-    P: Fn(usize) -> T,
-    B0: FnMut(&T),
-    B1: FnMut(&T),
-{
+    mut benchmark: impl LatencyBenchmark,
+) -> Vec<(usize, f32)> {
     let mut results = vec![];
     let mut size = opts.min_size;
     while size <= opts.max_size {
         let mut total_time = 0.0;
-        // Prepare the send buffer
-        let data = prepare(size);
+        // Prepare to run the benchmark code.
+        benchmark.init(size);
         for i in 0..opts.iterations + opts.skip {
-            if rank == 0 {
-                for j in 0..=opts.warmup_validation {
-                    let start = Instant::now();
-                    body0(&data);
-                    if i >= opts.skip && j == opts.warmup_validation {
-                        total_time += Instant::now().duration_since(start).as_secs_f32();
-                    }
-                }
-            } else {
-                for _ in 0..=opts.warmup_validation {
-                    body1(&data);
+            for j in 0..=opts.warmup_validation {
+                let start = Instant::now();
+                // Body of code being benchmarked.
+                benchmark.body();
+                if i >= opts.skip && j == opts.warmup_validation {
+                    total_time += Instant::now().duration_since(start).as_secs_f32();
                 }
             }
         }
-        if rank == 0 {
-            let latency = (total_time * 1.0e6) / (2.0 * opts.iterations as f32);
-            results.push((size, latency));
-        }
+        let latency = (total_time * 1.0e6) / (2.0 * opts.iterations as f32);
+        results.push((size, latency));
         size *= 2;
     }
     results

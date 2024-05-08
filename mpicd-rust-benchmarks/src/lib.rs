@@ -4,9 +4,11 @@ use std::net::Ipv4Addr;
 use std::path::Path;
 
 mod latency;
-pub use latency::{latency, LatencyOptions};
+pub use latency::{latency, LatencyOptions, LatencyBenchmark};
 mod bw;
 pub use bw::{bw, BandwidthOptions};
+mod buffer;
+pub use buffer::ComplexVecType;
 
 /// Arguments for the serde benchmarks
 #[derive(Parser)]
