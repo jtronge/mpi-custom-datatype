@@ -145,20 +145,20 @@ impl Communicator for Context {
                 let mut buf = vec![0; 1];
                 let mut reqs = vec![];
                 for i in 1..size {
-                    reqs.push(self.internal_isend(&buf, i, encode_tag(BARRIER_TAG, 0, 0)).expect("failed to get send request"));
+                    reqs.push(self.internal_isend(&buf[..], i, encode_tag(BARRIER_TAG, 0, 0)).expect("failed to get send request"));
                 }
                 self.waitall(&reqs).expect("failed to wait for send requests");
 
                 reqs.clear();
                 for i in 1..size {
-                    reqs.push(self.internal_irecv(&mut buf, encode_tag(BARRIER_TAG, i, 0)).expect("failed to get recv request"));
+                    reqs.push(self.internal_irecv(&mut buf[..], encode_tag(BARRIER_TAG, i, 0)).expect("failed to get recv request"));
                 }
                 self.waitall(&reqs).expect("failed to wait for recv requests");
             } else {
                 let mut buf = vec![0; 1];
-                let req = self.internal_irecv(&mut buf, encode_tag(BARRIER_TAG, 0, 0)).expect("failed to get recv request");
+                let req = self.internal_irecv(&mut buf[..], encode_tag(BARRIER_TAG, 0, 0)).expect("failed to get recv request");
                 self.waitall(&[req]).expect("failed to wait for recv request");
-                let req = self.internal_isend(&buf, 0, encode_tag(BARRIER_TAG, rank, 0)).expect("failed to get send request");
+                let req = self.internal_isend(&buf[..], 0, encode_tag(BARRIER_TAG, rank, 0)).expect("failed to get send request");
                 self.waitall(&[req]).expect("failed to wait for send request");
             }
         }

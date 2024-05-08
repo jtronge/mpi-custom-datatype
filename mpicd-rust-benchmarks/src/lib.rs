@@ -6,9 +6,11 @@ use std::path::Path;
 mod latency;
 pub use latency::{latency, LatencyOptions, LatencyBenchmark};
 mod bw;
-pub use bw::{bw, BandwidthOptions};
+pub use bw::{bw, BandwidthOptions, BandwidthBenchmark};
 mod buffer;
-pub use buffer::ComplexVecType;
+pub use buffer::ComplexVec;
+mod generate;
+pub use generate::generate_complex_vec;
 
 /// Arguments for the serde benchmarks
 #[derive(Parser)]

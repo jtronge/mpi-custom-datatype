@@ -13,7 +13,7 @@ fn main() {
             let mut data = vec![vec![0; 128]; 128];
             let mut reqs = vec![];
             for row in &mut data {
-                reqs.push(ctx.irecv(row, 1, 0).unwrap());
+                reqs.push(ctx.irecv(&mut row[..], 1, 0).unwrap());
             }
             let _ = ctx.waitall(&reqs);
             println!("data[0] = {:?}", &data[0][..10]);
@@ -23,7 +23,7 @@ fn main() {
             let data: Vec<u32> = (0..128).collect();
             let mut reqs = vec![];
             for _ in 0..128 {
-                reqs.push(ctx.isend(&data, 0, 0).unwrap());
+                reqs.push(ctx.isend(&data[..], 0, 0).unwrap());
             }
             let _ = ctx.waitall(&reqs);
         }

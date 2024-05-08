@@ -1,8 +1,8 @@
 use mpicd::datatype::{DatatypeResult, Buffer, PackMethod, PackContext, PackState, UnpackState};
 
-pub struct ComplexVecType(pub Vec<Vec<i32>>);
+pub struct ComplexVec(pub Vec<Vec<i32>>);
 
-impl Buffer for &ComplexVecType {
+impl Buffer for &ComplexVec {
     fn as_ptr(&self) -> *const u8 {
         self.0.as_ptr() as *const _
     }
@@ -20,7 +20,7 @@ impl Buffer for &ComplexVecType {
     }
 }
 
-impl Buffer for &mut ComplexVecType {
+impl Buffer for &mut ComplexVec {
     fn as_ptr(&self) -> *const u8 {
         self.0.as_ptr() as *const _
     }

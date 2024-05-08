@@ -188,41 +188,56 @@ impl Drop for UCXBuffer {
     }
 }
 
-impl Buffer for &Vec<u32> {
-    fn as_ptr(&self) -> *const u8 {
-        Vec::as_ptr(self) as *const _
-    }
+macro_rules! impl_buffer_primitive {
+    ($ty:ty) => {
+        impl Buffer for &[$ty] {
+            fn as_ptr(&self) -> *const u8 {
+                <[$ty]>::as_ptr(self) as *const _
+            }
 
-    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
-        None
-    }
+            fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+                None
+            }
 
-    fn count(&self) -> usize {
-        self.len() * std::mem::size_of::<u32>()
-    }
+            fn count(&self) -> usize {
+                self.len() * std::mem::size_of::<$ty>()
+            }
 
-    fn pack_method(&self) -> PackMethod {
-        PackMethod::Contiguous
-    }
+            fn pack_method(&self) -> PackMethod {
+                PackMethod::Contiguous
+            }
+        }
+
+        impl Buffer for &mut [$ty] {
+            fn as_ptr(&self) -> *const u8 {
+                <[$ty]>::as_ptr(self) as *const _
+            }
+
+            fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+                Some(<[$ty]>::as_mut_ptr(self) as *mut _)
+            }
+
+            fn count(&self) -> usize {
+                self.len() * std::mem::size_of::<i32>()
+            }
+
+            fn pack_method(&self) -> PackMethod {
+                PackMethod::Contiguous
+            }
+        }
+    };
 }
 
-impl Buffer for &mut Vec<u32> {
-    fn as_ptr(&self) -> *const u8 {
-        Vec::as_ptr(self) as *const _
-    }
-
-    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
-        Some(Vec::as_mut_ptr(self) as *mut _)
-    }
-
-    fn count(&self) -> usize {
-        self.len() * std::mem::size_of::<u32>()
-    }
-
-    fn pack_method(&self) -> PackMethod {
-        PackMethod::Contiguous
-    }
-}
+impl_buffer_primitive!(u8);
+impl_buffer_primitive!(u16);
+impl_buffer_primitive!(u32);
+impl_buffer_primitive!(u64);
+impl_buffer_primitive!(i8);
+impl_buffer_primitive!(i16);
+impl_buffer_primitive!(i32);
+impl_buffer_primitive!(i64);
+impl_buffer_primitive!(f32);
+impl_buffer_primitive!(f64);
 
 struct PackContextHolder {
     context: Box<dyn PackContext>,
