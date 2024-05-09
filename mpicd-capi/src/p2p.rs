@@ -17,7 +17,7 @@ pub unsafe extern "C" fn MPI_Send(
     comm: c::Comm,
 ) -> c::ReturnStatus {
     let req = isend(buf, count, datatype, dest, tag, comm);
-    with_context(move |ctx, cctx| {
+    with_context(move |ctx, _cctx| {
         let _ = ctx.waitall(&[req.try_into().unwrap()]);
         consts::SUCCESS
     })
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn MPI_Recv(
     comm: c::Comm,
 ) -> c::ReturnStatus {
     let req = irecv(buf, count, datatype, source, tag, comm);
-    with_context(move |ctx, cctx| {
+    with_context(move |ctx, _cctx| {
         let _ = ctx.waitall(&[req.try_into().unwrap()]);
         consts::SUCCESS
     })
@@ -147,9 +147,9 @@ pub unsafe extern "C" fn MPI_Irecv(
 pub unsafe extern "C" fn MPI_Waitall(
     count: c_int,
     array_of_requests: *mut c::Request,
-    array_of_statuses: *mut c::Status,
+    _array_of_statuses: *mut c::Status,
 ) -> c::ReturnStatus {
-    with_context(move |ctx, cctx| {
+    with_context(move |ctx, _cctx| {
         let count: isize = count.try_into().unwrap();
         let mut reqs = vec![];
         for i in 0..count {

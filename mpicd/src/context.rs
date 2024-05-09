@@ -6,13 +6,11 @@ use crate::{
     Handle,
 };
 use mpicd_ucx_sys::{
-    rust_ucp_dt_make_contig, ucp_request_param_t,
-    ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx, ucp_tag_send_nbx,
-    ucp_worker_progress, ucp_tag_recv_info_t, ucs_status_t,
-    UCP_OP_ATTR_FIELD_CALLBACK, UCP_OP_ATTR_FIELD_DATATYPE,
-    UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL, UCS_OK,
+    ucp_request_param_t, ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx,
+    ucp_tag_send_nbx, ucp_worker_progress, UCP_OP_ATTR_FIELD_CALLBACK,
+    UCP_OP_ATTR_FIELD_DATATYPE, UCP_OP_ATTR_FIELD_USER_DATA,
+    UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
 };
-use std::os::raw::c_void;
 use std::cell::RefCell;
 use std::rc::Rc;
 use log::debug;
@@ -176,7 +174,7 @@ impl Communicator for Context {
 
     unsafe fn irecv<B: Buffer>(
         &self,
-        mut data: B,
+        data: B,
         source: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {

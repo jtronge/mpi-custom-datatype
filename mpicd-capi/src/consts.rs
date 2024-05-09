@@ -1,7 +1,6 @@
 //! MPI constant values.
 //!
 //! IMPORTANT: These must mirror those in `mpicd-capi/include/mpi.h`.
-use std::ffi::c_int;
 use crate::c;
 
 pub const SUCCESS: c::ReturnStatus = 0;

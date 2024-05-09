@@ -1,6 +1,5 @@
 use clap::{Parser, ValueEnum};
 use serde::de::DeserializeOwned;
-use std::net::Ipv4Addr;
 use std::path::Path;
 
 mod latency;
@@ -12,72 +11,34 @@ pub use buffer::ComplexVec;
 mod generate;
 pub use generate::generate_complex_vec;
 
-/// Arguments for the serde benchmarks
+/// Generic benchmark args.
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-pub struct SerdeArgs {
-    /// IPv4 address of other process
-    pub address: Ipv4Addr,
-    /// TCP port of other process
-    #[arg(short, long)]
-    pub port: u16,
-    /// Is this the server process?
-    #[arg(short, long)]
-    pub server: bool,
-    /// Which kind of benchmark to run
+pub struct BenchmarkArgs {
+    /// Type of benchmark to run.
     #[arg(value_enum, short, long)]
-    pub kind: SerKind,
-    /// Config path
+    pub kind: BenchmarkKind,
+
+    /// Path to benchmark options file.
     #[arg(short, long)]
-    pub config: String,
+    pub options_path: String,
 }
 
-/// Arguments for the iovec benchmarks
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-pub struct IovecArgs {
-    /// IpV4 address of other process
-    pub address: Ipv4Addr,
-    /// Port of other process
-    #[arg(short, long)]
-    pub port: u16,
-    /// Will this run as a server process?
-    #[arg(short, long)]
-    pub server: bool,
-    /// Config path
-    #[arg(short, long)]
-    pub config: String,
-}
-
-/// Arguments for the rsmpi benchmarks
-#[derive(Parser)]
-#[command(author)]
-pub struct RsmpiArgs {
-    /// Config path
-    #[arg(short, long)]
-    pub config: String,
-}
-
-/// Serialization kind for the ucx-based version.
+/// Kind of benchmark to run.
 #[derive(Clone, Debug, ValueEnum)]
-pub enum SerKind {
-    MessagePack,
-    Postcard,
-    Bincode,
+pub enum BenchmarkKind {
+    /// Manual packing benchmark.
+    Packed,
+
+    /// Custom datatype benchmark.
+    Custom,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum BenchmarkError {
-    IOError,
-    DeserializeError,
-}
-
-/// Load a config from a file path.
-pub fn load_config<P, T>(path: P) -> Result<T, BenchmarkError>
+/// Load benchmark options from a file path.
+pub fn load_options<P, T>(path: P) -> T
 where
     P: AsRef<Path>,
     T: DeserializeOwned,
 {
-    serde_yaml::from_reader(std::fs::File::open(path).map_err(|_| BenchmarkError::IOError)?)
-        .map_err(|_| BenchmarkError::DeserializeError)
+    let fp = std::fs::File::open(path).expect("failed to load option file");
+    serde_yaml::from_reader(fp).expect("failed to deserialize option file")
 }

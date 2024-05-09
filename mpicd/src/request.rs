@@ -81,15 +81,15 @@ pub(crate) struct RequestData {
     complete: bool,
 
     /// Wraps created datatype and extra context info.
-    buffer: UCXBuffer,
+    _buffer: UCXBuffer,
 }
 
 impl RequestData {
     /// Create a new request data struct for callback user data.
-    pub fn new(buffer: UCXBuffer) -> RequestData {
+    pub fn new(_buffer: UCXBuffer) -> RequestData {
         RequestData {
             complete: false,
-            buffer,
+            _buffer,
         }
     }
 }

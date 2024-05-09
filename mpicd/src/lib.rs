@@ -1,17 +1,17 @@
 //! mpicd library code and entry points.
 use log::{error, info};
 use mpicd_ucx_sys::{
-    rust_ucp_init, rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status, ucp_address_t,
-    ucp_cleanup, ucp_context_h, ucp_ep_close_nb, ucp_ep_create, ucp_ep_h, ucp_ep_params_t,
-    ucp_params_t, ucp_request_free, ucp_tag_t, ucp_worker_create, ucp_worker_destroy,
-    ucp_worker_get_address, ucp_worker_h, ucp_worker_params_t, ucp_worker_release_address,
-    ucs_status_string, ucs_status_t, UCP_EP_CLOSE_MODE_FORCE, UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE,
-    UCP_EP_PARAM_FIELD_REMOTE_ADDRESS, UCP_ERR_HANDLING_MODE_PEER, UCP_FEATURE_STREAM,
-    UCP_FEATURE_TAG, UCP_PARAM_FIELD_FEATURES, UCP_WORKER_PARAM_FIELD_THREAD_MODE, UCS_OK,
-    UCS_INPROGRESS, UCS_THREAD_MODE_SINGLE,
+    rust_ucp_init, ucp_address_t, ucp_cleanup, ucp_context_h, ucp_ep_close_nb,
+    ucp_ep_create, ucp_ep_h, ucp_ep_params_t, ucp_params_t, ucp_tag_t,
+    ucp_worker_create, ucp_worker_destroy, ucp_worker_get_address, ucp_worker_h,
+    ucp_worker_params_t, ucp_worker_release_address, ucs_status_string,
+    ucs_status_t, UCP_EP_CLOSE_MODE_FORCE, UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE,
+    UCP_EP_PARAM_FIELD_REMOTE_ADDRESS, UCP_ERR_HANDLING_MODE_PEER,
+    UCP_FEATURE_STREAM, UCP_FEATURE_TAG, UCP_PARAM_FIELD_FEATURES,
+    UCP_WORKER_PARAM_FIELD_THREAD_MODE, UCS_OK, UCS_THREAD_MODE_SINGLE,
 };
 use std::cell::RefCell;
-use std::ffi::{c_void, CStr};
+use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::rc::Rc;
 

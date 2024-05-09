@@ -1,6 +1,5 @@
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
-use std::rc::Rc;
 use log::debug;
 use mpicd_ucx_sys::{
     rust_ucp_dt_make_contig, rust_ucp_dt_make_iov, ucp_datatype_t, ucp_dt_create_generic, ucp_generic_dt_ops_t, ucp_dt_iov_t, ucs_status_t, UCS_OK,
@@ -344,7 +343,7 @@ unsafe extern "C" fn pack(
         packed_size
     } else {
         let packed_size = (*state).get_packed_size();
-        (*state).packed_size.insert(packed_size);
+        let _ = (*state).packed_size.insert(packed_size);
         packed_size
     };
     assert!(offset < packed_size);

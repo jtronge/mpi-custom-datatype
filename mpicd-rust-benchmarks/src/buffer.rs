@@ -2,6 +2,28 @@ use mpicd::datatype::{DatatypeResult, Buffer, PackMethod, PackContext, PackState
 
 pub struct ComplexVec(pub Vec<Vec<i32>>);
 
+impl ComplexVec {
+    /// Manually pack the complex vec.
+    pub fn pack(&self) -> Vec<i32> {
+        self.0
+            .iter()
+            .flatten()
+            .map(|i| *i)
+            .collect()
+    }
+
+    /// Manually unpack from a provided buffer.
+    pub fn unpack_from(&mut self, packed: &[i32]) {
+        let mut pos = 0;
+        for row in &mut self.0 {
+            let len = row.len();
+            row.copy_from_slice(&packed[pos..pos + len]);
+            pos += len;
+        }
+    }
+}
+
+
 impl Buffer for &ComplexVec {
     fn as_ptr(&self) -> *const u8 {
         self.0.as_ptr() as *const _

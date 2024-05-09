@@ -12,7 +12,7 @@ pub type Datatype = c_int;
 
 /// Function for creating the pack state from a context and buffer.
 pub type PackStateFn = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         context: *mut c_void,
         src: *const c_void,
         src_count: Count,
@@ -22,7 +22,7 @@ pub type PackStateFn = Option<
 
 /// Function for creating the unpack state from a context and buffer.
 pub type UnpackStateFn = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         context: *mut c_void,
         dst: *mut c_void,
         dst_count: Count,
@@ -32,7 +32,7 @@ pub type UnpackStateFn = Option<
 
 /// Function for querying the total packed size of a buffer.
 pub type QueryFn = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         context: *mut c_void,
         buf: *const c_void,
         count: Count,
@@ -42,7 +42,7 @@ pub type QueryFn = Option<
 
 /// Actual pack function.
 pub type PackFn = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         state: *mut c_void,
         buf: *const c_void,
         count: Count,
@@ -55,7 +55,7 @@ pub type PackFn = Option<
 
 /// Actual unpack function.
 pub type UnpackFn = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         state: *mut c_void,
         buf: *mut c_void,
         count: Count,
@@ -66,14 +66,14 @@ pub type UnpackFn = Option<
 >;
 
 /// Free the pack state.
-pub type PackStateFreeFn = Option<extern "C" fn(state: *mut c_void) -> c_int>;
+pub type PackStateFreeFn = Option<unsafe extern "C" fn(state: *mut c_void) -> c_int>;
 
 /// Free the unpack state.
-pub type UnpackStateFreeFn = Option<extern "C" fn(state: *mut c_void) -> c_int>;
+pub type UnpackStateFreeFn = Option<unsafe extern "C" fn(state: *mut c_void) -> c_int>;
 
 /// Get the number of memory regions.
 pub type RegionCountFn = Option<
-    extern "C" fn(buf: *mut c_void, count: Count, region_count: *mut Count) -> c_int
+    unsafe extern "C" fn(buf: *mut c_void, count: Count, region_count: *mut Count) -> c_int
 >;
 
 /// Receive handler for the iovec-like API.
@@ -84,7 +84,7 @@ pub type RegionCountFn = Option<
 ///       expected, then I don't think this is a problem, but it could be a source of
 ///       UB.
 pub type RegionFn = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         buf: *mut c_void,
         count: Count,
         region_count: Count,

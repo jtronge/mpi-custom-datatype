@@ -1,12 +1,11 @@
 //! Datatype management code.
-use std::ffi::{c_int, c_void};
+use std::ffi::c_void;
 use crate::c;
 use mpicd::datatype::{
     Buffer, PackMethod, PackContext, PackState, UnpackState, MemRegionsDatatype,
     DatatypeResult, DatatypeError,
 };
 use crate::{consts, with_context};
-use log::debug;
 
 pub(crate) enum BufferPointer {
     Const(*const u8),
