@@ -79,20 +79,13 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
 
 fn main() {
     let args = BenchmarkArgs::parse();
+    let opts: BandwidthOptions = mpicd_rust_benchmarks::load_options(&args.options_path);
 
     let ctx = mpicd::init().expect("failed to init mpicd");
     let size = ctx.size();
     let rank = ctx.rank();
     assert_eq!(size, 2);
 
-    let opts = BandwidthOptions {
-        min_size: 8,
-        max_size: 1024,
-        window_size: 64,
-        iterations: 1024,
-        skip: 10,
-        warmup_validation: 20,
-    };
     let benchmark = Benchmark {
         kind: args.kind,
         ctx,

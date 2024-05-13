@@ -58,19 +58,13 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
 
 fn main() {
     let args = BenchmarkArgs::parse();
+    let opts: LatencyOptions = mpicd_rust_benchmarks::load_options(&args.options_path);
 
     let ctx = mpicd::init().expect("failed to init mpicd");
     let size = ctx.size();
     let rank = ctx.rank();
     assert_eq!(size, 2);
 
-    let opts = LatencyOptions {
-        iterations: 100,
-        skip: 10,
-        warmup_validation: 10,
-        min_size: 8,
-        max_size: 100000,
-    };
     let benchmark = Benchmark {
         kind: args.kind,
         ctx,
