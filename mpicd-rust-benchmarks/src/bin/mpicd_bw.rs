@@ -14,10 +14,11 @@ struct Benchmark<C: Communicator> {
 
 impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
     fn init(&mut self, window_size: usize, size: usize) {
+        let true_size = size / std::mem::size_of::<i32>();
         let buffers = if self.rank == 0 {
-            (0..window_size).map(|i| generate_complex_vec(size, i+1)).collect()
+            (0..window_size).map(|i| generate_complex_vec(true_size, i+1)).collect()
         } else {
-            (0..window_size).map(|_| ComplexVec(vec![vec![0; size]])).collect()
+            (0..window_size).map(|_| ComplexVec(vec![vec![0; true_size]])).collect()
         };
         let _ = self.buffers.insert(buffers);
     }
@@ -36,6 +37,7 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
                         BenchmarkKind::Custom => {
                             reqs.push(self.ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1"));
                         }
+                        BenchmarkKind::Iovec => todo!(),
                     }
                 }
                 let _ = self.ctx.waitall(&reqs);
@@ -67,6 +69,7 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
                         }
                         let _ = self.ctx.waitall(&reqs);
                     }
+                        BenchmarkKind::Iovec => todo!(),
                 }
 
                 let ack_buf = ComplexVec(vec![vec![2]; 1]);

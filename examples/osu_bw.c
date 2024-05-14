@@ -18,8 +18,8 @@
 #define FIELD_WIDTH 10
 #define FLOAT_PRECISION 2
 
-void parse_arg(int argc, char *argv[], const char *long_opt,
-               const char *short_opt, int *value, int default_value);
+void parse_arg_int(int argc, char *argv[], const char *long_opt,
+                   const char *short_opt, int *value, int default_value);
 double calculate_total(double, double, double, int);
 
 int main(int argc, char *argv[])
@@ -42,12 +42,12 @@ int main(int argc, char *argv[])
     int max_message_size;
     int mpi_type_size = 1;
 
-    parse_arg(argc, argv, "--warmup", NULL, &warmup_validation, 16);
-    parse_arg(argc, argv, "--skip", "-s", &skip, 10);
-    parse_arg(argc, argv, "--iterations", "-i", &iterations, 128);
-    parse_arg(argc, argv, "--window-size", "-w", &window_size, 64);
-    parse_arg(argc, argv, "--min-size", NULL, &min_message_size, 2);
-    parse_arg(argc, argv, "--max-size", NULL, &max_message_size, 128);
+    parse_arg_int(argc, argv, "--warmup", NULL, &warmup_validation, 16);
+    parse_arg_int(argc, argv, "--skip", "-s", &skip, 10);
+    parse_arg_int(argc, argv, "--iterations", "-i", &iterations, 128);
+    parse_arg_int(argc, argv, "--window-size", "-w", &window_size, 64);
+    parse_arg_int(argc, argv, "--min-size", NULL, &min_message_size, 2);
+    parse_arg_int(argc, argv, "--max-size", NULL, &max_message_size, 128);
 
     s_buf = malloc(sizeof(char *) * window_size);
     r_buf = malloc(sizeof(char *) * window_size);
@@ -164,7 +164,7 @@ double calculate_total(double t_start, double t_end, double t_lo,
     return t_end - t_start;
 }
 
-void parse_arg(int argc, char *argv[], const char *long_opt, const char *short_opt, int *value, int default_value)
+void parse_arg_int(int argc, char *argv[], const char *long_opt, const char *short_opt, int *value, int default_value)
 {
     *value = default_value;
     for (int i = 1; i < argc; ++i) {

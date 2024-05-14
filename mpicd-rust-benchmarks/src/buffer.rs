@@ -1,4 +1,4 @@
-use mpicd::datatype::{DatatypeResult, Buffer, PackMethod, PackContext, PackState, UnpackState};
+use mpicd::datatype::{DatatypeResult, Buffer, PackMethod, PackContext, PackState, UnpackState, MemRegionsDatatype};
 
 pub struct ComplexVec(pub Vec<Vec<i32>>);
 
@@ -167,5 +167,64 @@ impl UnpackState for State {
         }
         self.next_offset += used;
         Ok(())
+    }
+}
+
+/// Wrapper type around a ComplexVec reference to allow for an iovec
+/// implementation.
+pub struct IovecComplexVec<'a>(pub &'a ComplexVec);
+
+impl<'a> Buffer for IovecComplexVec<'a> {
+    fn as_ptr(&self) -> *const u8 {
+        self.0.0.as_ptr() as *const _
+    }
+
+    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+        None
+    }
+
+    fn count(&self) -> usize {
+        self.0.0.len()
+    }
+
+    fn pack_method(&self) -> PackMethod {
+        PackMethod::MemRegions(Box::new(ComplexVecMemRegions {}))
+    }
+}
+
+pub struct ComplexVecMemRegions {}
+
+impl MemRegionsDatatype for ComplexVecMemRegions {
+    unsafe fn regions(&self, buf: *mut u8, count: usize) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        let outer_vec = buf as *mut Vec<i32>;
+        Ok(
+            (0..count)
+                .map(|i| {
+                    let v = outer_vec.offset(i as isize);
+                    ((*v).as_mut_ptr() as *mut _, (*v).len())
+                })
+                .collect()
+        )
+    }
+}
+
+/// Same as IovecComplexVec, but with a mutable reference.
+pub struct IovecComplexVecMut<'a>(pub &'a mut ComplexVec);
+
+impl<'a> Buffer for IovecComplexVecMut<'a> {
+    fn as_ptr(&self) -> *const u8 {
+        self.0.0.as_ptr() as *const _
+    }
+
+    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+        Some(self.0.0.as_mut_ptr() as *mut _)
+    }
+
+    fn count(&self) -> usize {
+        self.0.0.len()
+    }
+
+    fn pack_method(&self) -> PackMethod {
+        PackMethod::MemRegions(Box::new(ComplexVecMemRegions {}))
     }
 }

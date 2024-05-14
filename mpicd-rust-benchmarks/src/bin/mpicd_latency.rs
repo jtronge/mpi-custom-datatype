@@ -1,7 +1,8 @@
 use clap::Parser;
 use mpicd::communicator::Communicator;
+use mpicd::datatype::Buffer;
 use mpicd_rust_benchmarks::{
-    BenchmarkArgs, BenchmarkKind, ComplexVec, latency, LatencyBenchmark, LatencyOptions, generate_complex_vec,
+    BenchmarkArgs, BenchmarkKind, ComplexVec, IovecComplexVec, IovecComplexVecMut, latency, LatencyBenchmark, LatencyOptions, generate_complex_vec,
 };
 
 struct Benchmark<C: Communicator> {
@@ -12,10 +13,23 @@ struct Benchmark<C: Communicator> {
     rbuf: Option<ComplexVec>,
 }
 
+unsafe fn inner_code<C: Communicator, S: Buffer, R: Buffer>(ctx: &C, rank: i32, sbuf: S, rbuf: R) {
+    if rank == 0 {
+        let sreq = ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1");
+        let rreq = ctx.irecv(rbuf, 1, 0).expect("failed to receive buffer from rank 1");
+        let _ = ctx.waitall(&[sreq, rreq]);
+    } else {
+        let rreq = ctx.irecv(rbuf, 0, 0).expect("failed to receive buffer from rank 0");
+        let sreq = ctx.isend(sbuf, 0, 0).expect("failed to send buffer to rank 0");
+        let _ = ctx.waitall(&[sreq, rreq]);
+    }
+}
+
 impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
     fn init(&mut self, size: usize) {
-        let _ = self.sbuf.insert(generate_complex_vec(size, 2333));
-        let _ = self.rbuf.insert(ComplexVec(vec![vec![0; size]]));
+        let true_size = size / std::mem::size_of::<i32>();
+        let _ = self.sbuf.insert(generate_complex_vec(true_size, 2333));
+        let _ = self.rbuf.insert(ComplexVec(vec![vec![0; true_size]]));
     }
 
     fn body(&mut self) {
@@ -27,29 +41,16 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
                 BenchmarkKind::Packed => {
                     let packed_sbuf = sbuf.pack();
                     let mut packed_rbuf = vec![0i32; packed_sbuf.len()];
-
-                    if self.rank == 0 {
-                        let sreq = self.ctx.isend(&packed_sbuf[..], 1, 0).expect("failed to send buffer to rank 1");
-                        let rreq = self.ctx.irecv(&mut packed_rbuf[..], 1, 0).expect("failed to send buffer to rank 1");
-                        let _ = self.ctx.waitall(&[sreq, rreq]);
-                    } else {
-                        let rreq = self.ctx.irecv(&mut packed_rbuf[..], 0, 0).expect("failed to receive buffer from rank 0");
-                        let sreq = self.ctx.isend(&packed_sbuf[..], 0, 0).expect("failed to send buffer to rank 0");
-                        let _ = self.ctx.waitall(&[sreq, rreq]);
-                    }
-
+                    inner_code(&self.ctx, self.rank, &packed_sbuf[..], &mut packed_rbuf[..]);
                     rbuf.unpack_from(&packed_rbuf);
                 }
                 BenchmarkKind::Custom => {
-                    if self.rank == 0 {
-                        let sreq = self.ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1");
-                        let rreq = self.ctx.irecv(rbuf, 1, 0).expect("failed to receive buffer from rank 1");
-                        let _ = self.ctx.waitall(&[sreq, rreq]);
-                    } else {
-                        let rreq = self.ctx.irecv(rbuf, 0, 0).expect("failed to receive buffer from rank 0");
-                        let sreq = self.ctx.isend(sbuf, 0, 0).expect("failed to send buffer to rank 0");
-                        let _ = self.ctx.waitall(&[sreq, rreq]);
-                    }
+                    inner_code(&self.ctx, self.rank, sbuf, rbuf);
+                }
+                BenchmarkKind::Iovec => {
+                    let sbuf_iov = IovecComplexVec(sbuf);
+                    let rbuf_iov = IovecComplexVecMut(rbuf);
+                    inner_code(&self.ctx, self.rank, sbuf_iov, rbuf_iov);
                 }
             }
         }
