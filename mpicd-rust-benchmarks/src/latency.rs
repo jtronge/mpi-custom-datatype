@@ -12,17 +12,15 @@ pub struct LatencyOptions {
 }
 
 pub trait LatencyBenchmark {
+    /// Initialization code (not timed).
     fn init(&mut self, size: usize);
 
+    /// Code of the benchmark being timed.
     fn body(&mut self);
 }
 
 /// Generic latency benchmark function. Returns a vec of pairs of the form
 /// (size, microseconds).
-///
-/// The `prepare` callback is used to prepare data for an iteration. The
-/// `body0` and `body1` callbacks are called on rank 0 and 1 of the
-/// communicator respectively.
 ///
 /// Based on the OSU microbenchmarks version for MPI.
 pub fn latency(
