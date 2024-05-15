@@ -2,7 +2,7 @@ use clap::Parser;
 use mpicd::communicator::Communicator;
 use mpicd_rust_benchmarks::{
     BenchmarkArgs, BenchmarkKind, BandwidthOptions, BandwidthBenchmark, ComplexVec,
-    generate_complex_vec,
+    IovecComplexVec, IovecComplexVecMut,
 };
 
 struct Benchmark<C: Communicator> {
@@ -14,13 +14,21 @@ struct Benchmark<C: Communicator> {
 
 impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
     fn init(&mut self, window_size: usize, size: usize) {
-        let true_size = size / std::mem::size_of::<i32>();
-        let buffers = if self.rank == 0 {
-            (0..window_size).map(|i| generate_complex_vec(true_size, i+1)).collect()
+        let count = size / std::mem::size_of::<i32>();
+
+        if let Some(buffers) = self.buffers.as_mut() {
+            // Assume the window size doesn't change between iterations.
+            assert_eq!(buffers.len(), window_size);
+
+            for (i, buf) in buffers.iter_mut().enumerate() {
+                buf.update(count, i+1);
+            }
         } else {
-            (0..window_size).map(|_| ComplexVec(vec![vec![0; true_size]])).collect()
-        };
-        let _ = self.buffers.insert(buffers);
+            let buffers = (0..window_size)
+                .map(|i| ComplexVec::new(count, i+1))
+                .collect();
+            let _ = self.buffers.insert(buffers);
+        }
     }
 
     fn body(&mut self) {
@@ -29,16 +37,19 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
             if self.rank == 0 {
                 let mut reqs = vec![];
                 for sbuf in buffers {
-                    match self.kind {
+                    let req = match self.kind {
                         BenchmarkKind::Packed => {
                             let packed_sbuf = sbuf.pack();
-                            reqs.push(self.ctx.isend(&packed_sbuf[..], 1, 0).expect("failed to send buffer to rank 1"));
+                            self.ctx.isend(&packed_sbuf[..], 1, 0)
                         }
                         BenchmarkKind::Custom => {
-                            reqs.push(self.ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1"));
+                            self.ctx.isend(sbuf, 1, 0)
                         }
-                        BenchmarkKind::Iovec => todo!(),
-                    }
+                        BenchmarkKind::Iovec => {
+                            self.ctx.isend(IovecComplexVec(sbuf), 1, 0)
+                        }
+                    };
+                    reqs.push(req.expect("failed to send buffer to rank 1"));
                 }
                 let _ = self.ctx.waitall(&reqs);
 
@@ -69,7 +80,16 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
                         }
                         let _ = self.ctx.waitall(&reqs);
                     }
-                        BenchmarkKind::Iovec => todo!(),
+                    BenchmarkKind::Iovec => {
+                        let mut reqs = vec![];
+                        for rbuf in buffers {
+                            let req = self.ctx
+                                .irecv(IovecComplexVecMut(rbuf), 0, 0)
+                                .expect("failed to receive buffer from rank 0");
+                            reqs.push(req);
+                        }
+                        let _ = self.ctx.waitall(&reqs);
+                    }
                 }
 
                 let ack_buf = ComplexVec(vec![vec![2]; 1]);
@@ -95,12 +115,14 @@ fn main() {
         rank,
         buffers: None,
     };
-    let results = mpicd_rust_benchmarks::bw(opts, benchmark);
+    mpicd_rust_benchmarks::bw(opts, benchmark, rank);
 
+/*
     if rank == 0 {
         println!("# size bandwidth");
         for (size, bw) in &results {
             println!("{} {}", size, bw);
         }
     }
+*/
 }

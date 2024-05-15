@@ -6,10 +6,9 @@ mod latency;
 pub use latency::{latency, LatencyOptions, LatencyBenchmark};
 mod bw;
 pub use bw::{bw, BandwidthOptions, BandwidthBenchmark};
-mod buffer;
-pub use buffer::{ComplexVec, IovecComplexVec, IovecComplexVecMut};
-mod generate;
-pub use generate::generate_complex_vec;
+mod datatype;
+pub use datatype::{ComplexVec, IovecComplexVec, IovecComplexVecMut};
+mod random;
 
 /// Generic benchmark args.
 #[derive(Parser)]
@@ -18,7 +17,15 @@ pub struct BenchmarkArgs {
     #[arg(value_enum, short, long)]
     pub kind: BenchmarkKind,
 
-    /// Path to benchmark options file.
+    /// Path for benchmark options file.
+    #[arg(short, long)]
+    pub options_path: String,
+}
+
+/// RSMPI specific args.
+#[derive(Parser)]
+pub struct RsmpiArgs {
+    /// Path for benchmark options file.
     #[arg(short, long)]
     pub options_path: String,
 }

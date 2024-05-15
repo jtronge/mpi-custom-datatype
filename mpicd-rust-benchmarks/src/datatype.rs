@@ -1,8 +1,49 @@
+//! Datatypes used for benchmarking.
 use mpicd::datatype::{DatatypeResult, Buffer, PackMethod, PackContext, PackState, UnpackState, MemRegionsDatatype};
+use crate::random::Random;
 
 pub struct ComplexVec(pub Vec<Vec<i32>>);
 
+/// Fill the complex vec with randomly sized vectors summing up to count.
+fn fill_complex_vec(data: &mut Vec<Vec<i32>>, mut rand: Random, count: usize) {
+    let mut total = 0;
+    while total < count {
+        let len = rand.value() % count;
+        let len = if (total + len) > count {
+            count - total
+        } else {
+            len
+        };
+        let inner_data = (0..len).map(|i| (total + i) as i32).collect();
+        data.push(inner_data);
+        total += len;
+    }
+}
+
 impl ComplexVec {
+    /// Create a new complex vector from a count, random seed, and rank.
+    pub fn new(count: usize, seed: usize) -> ComplexVec {
+        let rand = Random::new(seed);
+        let mut data = vec![];
+        fill_complex_vec(&mut data, rand, count);
+        ComplexVec(data)
+    }
+
+    /// Update an existing buffer, optimizing to avoid reallocating each time.
+    pub fn update(&mut self, count: usize, seed: usize) {
+        let rand = Random::new(seed);
+
+        if count < 2048 {
+            self.0.clear();
+            fill_complex_vec(&mut self.0, rand, count);
+        } else {
+            let prev_count: usize = self.0.iter().map(|v| v.len()).sum();
+            assert!(count > prev_count);
+            let new_count = count - prev_count;
+            fill_complex_vec(&mut self.0, rand, new_count);
+        }
+    }
+
     /// Manually pack the complex vec.
     pub fn pack(&self) -> Vec<i32> {
         self.0

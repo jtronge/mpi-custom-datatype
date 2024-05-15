@@ -28,9 +28,13 @@ pub trait LatencyBenchmark {
 pub fn latency(
     opts: LatencyOptions,
     mut benchmark: impl LatencyBenchmark,
-) -> Vec<(usize, f32)> {
-    let mut results = vec![];
+    rank: i32,
+) {
     let mut size = opts.min_size;
+
+    if rank == 0 {
+        println!("# size latency");
+    }
     while size <= opts.max_size {
         let mut total_time = 0.0;
         // Prepare to run the benchmark code.
@@ -46,8 +50,9 @@ pub fn latency(
             }
         }
         let latency = (total_time * 1.0e6) / (2.0 * opts.iterations as f32);
-        results.push((size, latency));
+        if rank == 0 {
+            println!("{} {}", size, latency);
+        }
         size *= 2;
     }
-    results
 }

@@ -27,10 +27,13 @@ pub trait BandwidthBenchmark {
 pub fn bw(
     opts: BandwidthOptions,
     mut benchmark: impl BandwidthBenchmark,
-) -> Vec<(usize, f32)> {
-    let mut results = vec![];
+    rank: i32,
+) {
     let mut size = opts.min_size;
 
+    if rank == 0 {
+        println!("# size bandwidth");
+    }
     while size <= opts.max_size {
         let mut total_time = 0.0;
         // Prepare to run the benchmark.
@@ -49,9 +52,9 @@ pub fn bw(
         let bandwidth =
             (size as f32 / 1.0e6 * opts.iterations as f32 * opts.window_size as f32)
                 / total_time;
-        results.push((size, bandwidth));
+        if rank == 0 {
+            println!("{} {}", size, bandwidth);
+        }
         size *= 2;
     }
-
-    results
 }

@@ -2,7 +2,8 @@ use clap::Parser;
 use mpicd::communicator::Communicator;
 use mpicd::datatype::Buffer;
 use mpicd_rust_benchmarks::{
-    BenchmarkArgs, BenchmarkKind, ComplexVec, IovecComplexVec, IovecComplexVecMut, latency, LatencyBenchmark, LatencyOptions, generate_complex_vec,
+    BenchmarkArgs, BenchmarkKind, ComplexVec, IovecComplexVec,
+    IovecComplexVecMut, LatencyBenchmark, LatencyOptions,
 };
 
 struct Benchmark<C: Communicator> {
@@ -27,9 +28,9 @@ unsafe fn inner_code<C: Communicator, S: Buffer, R: Buffer>(ctx: &C, rank: i32, 
 
 impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
     fn init(&mut self, size: usize) {
-        let true_size = size / std::mem::size_of::<i32>();
-        let _ = self.sbuf.insert(generate_complex_vec(true_size, 2333));
-        let _ = self.rbuf.insert(ComplexVec(vec![vec![0; true_size]]));
+        let count = size / std::mem::size_of::<i32>();
+        let _ = self.sbuf.insert(ComplexVec::new(count, 2333));
+        let _ = self.rbuf.insert(ComplexVec::new(count, 3222));
     }
 
     fn body(&mut self) {
@@ -73,12 +74,5 @@ fn main() {
         sbuf: None,
         rbuf: None,
     };
-    let results = latency(opts, benchmark);
-
-    if rank == 0 {
-        println!("# size latency");
-        for (size, lat) in &results {
-            println!("{} {}", size, lat);
-        }
-    }
+    mpicd_rust_benchmarks::latency(opts, benchmark, rank);
 }
