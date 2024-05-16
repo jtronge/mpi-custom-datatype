@@ -18,12 +18,14 @@ struct Benchmark<C: Communicator> {
 unsafe fn inner_code<C: Communicator, S: Buffer, R: Buffer>(ctx: &C, rank: i32, sbuf: S, rbuf: R) {
     if rank == 0 {
         let sreq = ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1");
+        let _ = ctx.waitall(&[sreq]);
         let rreq = ctx.irecv(rbuf, 1, 0).expect("failed to receive buffer from rank 1");
-        let _ = ctx.waitall(&[sreq, rreq]);
+        let _ = ctx.waitall(&[rreq]);
     } else {
         let rreq = ctx.irecv(rbuf, 0, 0).expect("failed to receive buffer from rank 0");
+        let _ = ctx.waitall(&[rreq]);
         let sreq = ctx.isend(sbuf, 0, 0).expect("failed to send buffer to rank 0");
-        let _ = ctx.waitall(&[sreq, rreq]);
+        let _ = ctx.waitall(&[sreq]);
     }
 }
 
