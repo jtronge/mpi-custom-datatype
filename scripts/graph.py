@@ -1,65 +1,77 @@
-"""Benchmark graphing script."""
+#!/usr/bin/env python3
 import argparse
+from pathlib import Path
 import os
-import matplotlib.pyplot as plt
-import json
+from matplotlib import pyplot as plt
+import numpy as np
 
 
-fmts = {
-    'bincode': '-b',
-    'iovec': '--g',
-    'rsmpi': '-.r',
-    'flat': ':k',
-}
+def load_result(fname):
+    """Load a two-column results from an output file."""
+    sizes = []
+    values = []
+    with open(fname) as fp:
+        for line in fp:
+            if line.startswith('#'):
+                continue
+            size, value = line.split()
+            sizes.append(int(size))
+            values.append(float(value))
+    return np.array(sizes), np.array(values)
 
 
-def graph_latency(config, tests):
-    """Graph a latency result."""
+def load_average_results(results_path, prefix):
+    """Load and average multiple runs in the results path."""
+    runfiles = [Path(results_path, fname) for fname in os.listdir(results_path)
+                if fname.startswith(f'{prefix}-')]
+    run_results = [load_result(runfile) for runfile in runfiles]
+    sizes = run_results[0][0]
+    stacked = np.stack([values for _, values in run_results])
+    average = np.average(stacked, axis=0)
+    print(average.shape)
+    return sizes, average
+
+
+def choose_x_label(size):
+    """Choose the proper x size label."""
+    if size >= 1024:
+        size_k = int(size / 1024)
+        return f'{size_k}k'
+    return size
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-r', '--results-path', required=True, help='result path')
+    parser.add_argument('-t', '--title', required=True, help='graph title')
+    parser.add_argument('-b', '--benchmark', required=True, choices=('bw', 'latency'), help='benchmark type')
+    args = parser.parse_args()
+
+    kinds = {
+        'custom': '-r',
+        'packed': ':g',
+        'iovec': '.-k',
+        'rsmpi': '-^b',
+    }
+    labels = {
+        'custom': 'mpicd-custom',
+        'packed': 'mpicd-packed',
+        'iovec': 'mpicd-regions',
+        'rsmpi': 'rsmpi-bytes-baseline'
+    }
+
+    plt.style.use('paper.mplstyle')
     fig, ax = plt.subplots()
-    ax.set_title(f'latency: {config}')
+    ax.set_yscale('log')
+    for name, fmt in kinds.items():
+        sizes, values = load_average_results(args.results_path, name)
+        sizes = [choose_x_label(size) for size in sizes]
+        ax.plot(sizes, values, fmt, label=labels[name])
+    ax.set_title(args.title)
     ax.set_xlabel('size (bytes)')
-    ax.set_ylabel('latency (μs)')
-    ax.grid(visible=True)
-    for test_name, results in tests.items():
-        sizes = sorted(int(size) for size in results)
-        sizes = [str(size) for size in sizes]
-        lats = [results[size] for size in sizes]
-        ax.plot(sizes, lats, fmts[test_name], label=test_name)
+    if args.benchmark == 'bw':
+        ax.set_ylabel('bandwidth (MB/s)')
+    else:
+        ax.set_ylabel('latency (µs)')
     ax.legend()
     plt.show()
-
-
-def graph_bw(config, tests):
-    """Graph a bandwidth result."""
-    fig, ax = plt.subplots()
-    ax.set_title(f'bandwidth: {config}')
-    ax.set_xlabel('size (bytes)')
-    ax.set_ylabel('bandwidth (MB/s)')
-    ax.grid(visible=True)
-    for test_name, results in tests.items():
-        sizes = sorted(int(size) for size in results)
-        sizes = [str(size) for size in sizes]
-        bw = [results[size] for size in sizes]
-        ax.plot(sizes, bw, fmts[test_name], label=test_name)
-    ax.legend()
-    plt.show()
-
-
-parser = argparse.ArgumentParser(description='graph benchmark results')
-parser.add_argument('-o', '--output', help='JSON benchmark output', required=True)
-args = parser.parse_args()
-
-graphers = {
-    'latency': graph_latency,
-    'bw': graph_bw,
-}
-
-with open(args.output) as fp:
-    results = json.load(fp)
-
-plt.rcParams.update({
-    'lines.linewidth': 2,
-})
-for benchmark, configs in results.items():
-    for config, tests in configs.items():
-        graphers[benchmark](config, tests)
