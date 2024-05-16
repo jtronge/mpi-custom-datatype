@@ -20,6 +20,10 @@ pub struct BenchmarkArgs {
     /// Path for benchmark options file.
     #[arg(short, long)]
     pub options_path: String,
+
+    /// Should this test use a single vector?
+    #[arg(short, long)]
+    pub single_vec: bool,
 }
 
 /// RSMPI specific args.

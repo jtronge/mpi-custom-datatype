@@ -29,6 +29,11 @@ impl ComplexVec {
         ComplexVec(data)
     }
 
+    /// Create a complex vector with just a single vec.
+    pub fn single_vec(count: usize) -> ComplexVec {
+        ComplexVec(vec![vec![0; count]])
+    }
+
     /// Update an existing buffer, optimizing to avoid reallocating each time.
     pub fn update(&mut self, count: usize, seed: usize) {
         let rand = Random::new(seed);
