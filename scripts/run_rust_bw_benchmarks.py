@@ -25,14 +25,25 @@ if __name__ == '__main__':
                         help='directory to place results in')
     parser.add_argument('-o', '--options-path', required=True,
                         help='options file path to run the benchmarks with')
+    parser.add_argument('-t', '--type', required=True, choices=('bw', 'latency'),
+                        help='benchmark type')
     args = parser.parse_args()
 
-    benchmarks = {
-        'rsmpi': ['./target/release/rsmpi_bw'],
-        'packed': ['./target/release/mpicd_bw', '--kind', 'packed'],
-        'custom': ['./target/release/mpicd_bw', '--kind', 'custom'],
-        'iovec': ['./target/release/mpicd_bw', '--kind', 'iovec'],
-    }
+    if args.type == 'bw':
+        benchmarks = {
+            'rsmpi': ['./target/release/rsmpi_bw'],
+            'packed': ['./target/release/mpicd_bw', '--kind', 'packed'],
+            'custom': ['./target/release/mpicd_bw', '--kind', 'custom'],
+            'iovec': ['./target/release/mpicd_bw', '--kind', 'iovec'],
+        }
+    else:
+        benchmarks = {
+            'rsmpi': ['./target/release/rsmpi_latency'],
+            'packed': ['./target/release/mpicd_latency', '--kind', 'packed'],
+            'custom': ['./target/release/mpicd_latency', '--kind', 'custom'],
+            'iovec': ['./target/release/mpicd_latency', '--kind', 'iovec'],
+        }
+
     for benchmark_name, benchmark_args in benchmarks.items():
         full_args = benchmark_args[:]
         full_args.extend(['--options-path', args.options_path])
