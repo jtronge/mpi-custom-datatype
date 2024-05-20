@@ -1,6 +1,10 @@
 #ifndef _MPI_H_
 #define _MPI_H_
 
+#if __cplusplus
+extern "C" {
+#endif
+
 typedef size_t MPI_Count;
 
 /* For simplicity MPI_Comm and other handles are defined to be integers */
@@ -121,5 +125,9 @@ int MPI_Type_create_custom(MPI_Type_custom_pack_state_function *pack_statefn,
 /* Constants */
 #define MPI_SUCCESS 0
 #define MPI_ERR_INTERNAL 1
+
+#if __cplusplus
+};
+#endif
 
 #endif /* _MPI_H_ */
