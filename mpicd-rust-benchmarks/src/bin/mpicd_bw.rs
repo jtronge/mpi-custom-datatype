@@ -2,7 +2,6 @@ use clap::Parser;
 use mpicd::communicator::Communicator;
 use mpicd_rust_benchmarks::{
     BenchmarkArgs, BenchmarkKind, BandwidthOptions, BandwidthBenchmark, ComplexVec,
-    IovecComplexVec, IovecComplexVecMut,
 };
 
 struct Benchmark<C: Communicator> {
@@ -45,9 +44,6 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
                         BenchmarkKind::Custom => {
                             self.ctx.isend(sbuf, 1, 0)
                         }
-                        BenchmarkKind::Iovec => {
-                            self.ctx.isend(IovecComplexVec(sbuf), 1, 0)
-                        }
                     };
                     reqs.push(req.expect("failed to send buffer to rank 1"));
                 }
@@ -80,16 +76,6 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
                         }
                         let _ = self.ctx.waitall(&reqs);
                     }
-                    BenchmarkKind::Iovec => {
-                        let mut reqs = vec![];
-                        for rbuf in buffers {
-                            let req = self.ctx
-                                .irecv(IovecComplexVecMut(rbuf), 0, 0)
-                                .expect("failed to receive buffer from rank 0");
-                            reqs.push(req);
-                        }
-                        let _ = self.ctx.waitall(&reqs);
-                    }
                 }
 
                 let ack_buf = ComplexVec(vec![vec![2]; 1]);
@@ -116,13 +102,4 @@ fn main() {
         buffers: None,
     };
     mpicd_rust_benchmarks::bw(opts, benchmark, rank);
-
-/*
-    if rank == 0 {
-        println!("# size bandwidth");
-        for (size, bw) in &results {
-            println!("{} {}", size, bw);
-        }
-    }
-*/
 }

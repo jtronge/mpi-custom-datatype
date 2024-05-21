@@ -11,24 +11,17 @@ pub type Count = usize;
 pub type Datatype = c_int;
 
 /// Function for creating the pack state from a context and buffer.
-pub type PackStateFn = Option<
+pub type StateFn = Option<
     unsafe extern "C" fn(
         context: *mut c_void,
-        src: *const c_void,
-        src_count: Count,
+        buf: *const c_void,
+        count: Count,
         state: *mut *mut c_void,
     ) -> c_int
 >;
 
-/// Function for creating the unpack state from a context and buffer.
-pub type UnpackStateFn = Option<
-    unsafe extern "C" fn(
-        context: *mut c_void,
-        dst: *mut c_void,
-        dst_count: Count,
-        state: *mut *mut c_void,
-    ) -> c_int
->;
+/// Free the pack state.
+pub type StateFreeFn = Option<unsafe extern "C" fn(state: *mut c_void) -> c_int>;
 
 /// Function for querying the total packed size of a buffer.
 pub type QueryFn = Option<
@@ -65,15 +58,14 @@ pub type UnpackFn = Option<
     ) -> c_int
 >;
 
-/// Free the pack state.
-pub type PackStateFreeFn = Option<unsafe extern "C" fn(state: *mut c_void) -> c_int>;
-
-/// Free the unpack state.
-pub type UnpackStateFreeFn = Option<unsafe extern "C" fn(state: *mut c_void) -> c_int>;
-
 /// Get the number of memory regions.
 pub type RegionCountFn = Option<
-    unsafe extern "C" fn(buf: *mut c_void, count: Count, region_count: *mut Count) -> c_int
+    unsafe extern "C" fn(
+        state: *mut c_void,
+        buf: *mut c_void,
+        count: Count,
+        region_count: *mut Count,
+    ) -> c_int
 >;
 
 /// Receive handler for the iovec-like API.
@@ -85,6 +77,7 @@ pub type RegionCountFn = Option<
 ///       UB.
 pub type RegionFn = Option<
     unsafe extern "C" fn(
+        state: *mut c_void,
         buf: *mut c_void,
         count: Count,
         region_count: Count,
@@ -101,6 +94,8 @@ pub type Comm = c_int;
 /// MPI_Status struct.
 #[repr(C)]
 pub struct Status {
+    count: c_int,
+    cancelled: c_int,
     source: c_int,
     tag: c_int,
     error: c_int,

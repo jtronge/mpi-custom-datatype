@@ -1,21 +1,13 @@
 //! Datatype management code.
 use std::ffi::c_void;
 use crate::c;
-use mpicd::datatype::{
-    Buffer, PackMethod, PackContext, PackState, UnpackState, MemRegionsDatatype,
-    DatatypeResult, DatatypeError,
-};
+use mpicd::datatype::{DatatypeResult, DatatypeError, MessageBuffer, PackMethod};
 use crate::{consts, with_context};
-
-pub(crate) enum BufferPointer {
-    Const(*const u8),
-    Mut(*mut u8),
-}
 
 /// Custom buffer type for utilizing pack and unpack functions in C.
 pub(crate) struct CustomBuffer {
     /// Pointer to underlying buffer.
-    pub(crate) ptr: BufferPointer,
+    pub(crate) ptr: *mut u8,
 
     /// Length of the buffer in bytes.
     pub(crate) len: usize,
@@ -24,73 +16,59 @@ pub(crate) struct CustomBuffer {
     pub(crate) custom_datatype: CustomDatatype,
 }
 
-impl Buffer for CustomBuffer {
-    fn as_ptr(&self) -> *const u8 {
-        match self.ptr {
-            BufferPointer::Const(ptr) => ptr,
-            BufferPointer::Mut(ptr) => ptr,
-        }
-    }
-
-    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
-        match self.ptr {
-            BufferPointer::Mut(ptr) => Some(ptr),
-            BufferPointer::Const(_) => None,
-        }
+impl MessageBuffer for CustomBuffer {
+    fn ptr(&self) -> *mut u8 {
+        self.ptr
     }
 
     fn count(&self) -> usize {
         self.len
     }
 
-    fn pack_method(&self) -> PackMethod {
-        if self.custom_datatype.supports_iovec() {
-            PackMethod::MemRegions(Box::new(self.custom_datatype))
+    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        let mut state: *mut c_void = std::ptr::null_mut();
+        let ret = if let Some(func) = self.custom_datatype.vtable.statefn {
+            func(self.custom_datatype.context, self.ptr as *const _, self.len, &mut state)
         } else {
-            PackMethod::Custom(Box::new(self.custom_datatype))
+            0
+        };
+
+        if ret == 0 {
+            Some(Ok(Box::new(CustomPackMethod {
+                custom_datatype: self.custom_datatype.clone(),
+                state,
+                ptr: self.ptr as *const _,
+                count: self.len,
+            })))
+        } else {
+            Some(Err(DatatypeError::StateError))
         }
     }
 }
 
 /// Send buffer to be used for MPI_BYTE types.
 pub(crate) struct ByteBuffer {
-    pub(crate) ptr: BufferPointer,
+    pub(crate) ptr: *mut u8,
     pub(crate) size: usize,
 }
 
-impl Buffer for ByteBuffer {
-    fn as_ptr(&self) -> *const u8 {
-        match self.ptr {
-            BufferPointer::Const(ptr) => ptr,
-            BufferPointer::Mut(ptr) => ptr,
-        }
-    }
-
-    fn as_mut_ptr(&mut self) -> Option<*mut u8> {
-        match self.ptr {
-            BufferPointer::Mut(ptr) => Some(ptr),
-            BufferPointer::Const(_) => None,
-        }
+impl MessageBuffer for ByteBuffer {
+    fn ptr(&self) -> *mut u8 {
+        self.ptr
     }
 
     fn count(&self) -> usize {
         self.size
     }
-
-    fn pack_method(&self) -> PackMethod {
-        PackMethod::Contiguous
-    }
 }
 
 #[derive(Copy, Clone)]
 pub(crate) struct CustomDatatypeVTable {
-    pack_statefn: c::PackStateFn,
-    unpack_statefn: c::UnpackStateFn,
+    statefn: c::StateFn,
+    state_freefn: c::StateFreeFn,
     queryfn: c::QueryFn,
     packfn: c::PackFn,
     unpackfn: c::UnpackFn,
-    pack_freefn: c::PackStateFreeFn,
-    unpack_freefn: c::UnpackStateFreeFn,
     region_countfn: c::RegionCountFn,
     regionfn: c::RegionFn,
 }
@@ -102,30 +80,76 @@ pub(crate) struct CustomDatatype {
     context: *mut c_void,
 }
 
-impl CustomDatatype {
-    pub(crate) fn supports_iovec(&self) -> bool {
-        self.vtable.regionfn.is_some()
-    }
+struct CustomPackMethod {
+    custom_datatype: CustomDatatype,
+    state: *mut c_void,
+    ptr: *const c_void,
+    count: usize,
 }
 
-impl MemRegionsDatatype for CustomDatatype {
-    unsafe fn regions(&self, buf: *mut u8, count: usize) -> DatatypeResult<Vec<(*mut u8, usize)>> {
-        // TODO: How are the returned buffers freed?
-        let region_countfn = self.vtable.region_countfn.expect("missing memory region count function");
+impl PackMethod for CustomPackMethod {
+    unsafe fn packed_size(&self) -> DatatypeResult<usize> {
+        if let Some(func) = self.custom_datatype.vtable.queryfn {
+            let mut packed_size = 0;
+            let ret = func(self.custom_datatype.context, self.ptr as *const _, self.count, &mut packed_size);
+            if ret == 0 {
+                Ok(packed_size)
+            } else {
+                Err(DatatypeError::PackedSizeError)
+            }
+        } else {
+            Ok(0)
+        }
+    }
+
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
+        if let Some(func) = self.custom_datatype.vtable.packfn {
+            let mut used = 0;
+            let ret = func(self.state, self.ptr, self.count, offset, dst as *mut _, dst_size, &mut used);
+            if ret == 0 {
+                Ok(used)
+            } else {
+                Err(DatatypeError::PackError)
+            }
+        } else {
+            Ok(0)
+        }
+    }
+
+    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+        if let Some(func) = self.custom_datatype.vtable.unpackfn {
+            let ret = func(self.state, self.ptr as *mut _, self.count, offset, src as *const _, src_size);
+            if ret == 0 {
+                Ok(())
+            } else {
+                Err(DatatypeError::UnpackError)
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        if self.custom_datatype.vtable.region_countfn.is_none() {
+            return Ok(vec![]);
+        }
+
+        let region_countfn = self.custom_datatype.vtable.region_countfn.unwrap();
         let mut region_count = 0;
-        let ret = region_countfn(buf as *mut _, count, &mut region_count);
+        let ret = region_countfn(self.state, self.ptr as *mut _, self.count, &mut region_count);
         if ret != 0 {
             return Err(DatatypeError::RegionError);
         }
 
-        let regionfn = self.vtable.regionfn.expect("missing memory region function");
+        let regionfn = self.custom_datatype.vtable.regionfn.expect("missing memory region function");
         let mut reg_lens = vec![0; region_count];
         let mut reg_bases = vec![std::ptr::null_mut(); region_count];
-        // For now don't do anything with the types.
+        // Ignore the types for now.
         let mut types = vec![consts::BYTE; region_count];
         let ret = regionfn(
-            buf as *mut _,
-            count,
+            self.state,
+            self.ptr as *mut _,
+            self.count,
             region_count,
             reg_lens.as_mut_ptr(),
             reg_bases.as_mut_ptr(),
@@ -145,83 +169,10 @@ impl MemRegionsDatatype for CustomDatatype {
     }
 }
 
-impl PackContext for CustomDatatype {
-    unsafe fn pack_state(&mut self, src: *const u8, count: usize) -> DatatypeResult<Box<dyn PackState>> {
-        let mut state: *mut c_void = std::ptr::null_mut();
-        let ret = if let Some(func) = self.vtable.pack_statefn {
-            func(self.context, src as *const _, count, &mut state)
-        } else {
-            0
-        };
-
-        if ret == 0 {
-            Ok(Box::new(CustomPackState {
-                custom_datatype: self.clone(),
-                state,
-                buf: src as *const _,
-                count,
-            }))
-        } else {
-            Err(DatatypeError::StateError)
-        }
-    }
-
-    unsafe fn unpack_state(&mut self, dst: *mut u8, count: usize) -> DatatypeResult<Box<dyn UnpackState>> {
-        let mut state: *mut c_void = std::ptr::null_mut();
-        let ret = if let Some(func) = self.vtable.unpack_statefn {
-            func(self.context, dst as *mut _, count, &mut state)
-        } else {
-            0
-        };
-
-        if ret == 0 {
-            Ok(Box::new(CustomUnpackState {
-                custom_datatype: self.clone(),
-                state,
-                buf: dst as *mut _,
-                count,
-            }))
-        } else {
-            Err(DatatypeError::StateError)
-        }
-    }
-
-    unsafe fn packed_size(&mut self, buf: *const u8, count: usize) -> DatatypeResult<usize> {
-        let func = self.vtable.queryfn.expect("missing query() function pointer");
-        let mut packed_size = 0;
-        let ret = func(self.context, buf as *const _, count, &mut packed_size);
-        if ret == 0 {
-            Ok(packed_size)
-        } else {
-            Err(DatatypeError::PackedSizeError)
-        }
-    }
-}
-
-struct CustomPackState {
-    custom_datatype: CustomDatatype,
-    state: *mut c_void,
-    buf: *const c_void,
-    count: usize,
-}
-
-impl PackState for CustomPackState {
-    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
-        let func = self.custom_datatype.vtable.packfn.expect("missing pack() function");
-        let mut used = 0;
-        let ret = func(self.state, self.buf, self.count, offset, dst as *mut _, dst_size, &mut used);
-        if ret == 0 {
-            Ok(used)
-        } else {
-            Err(DatatypeError::PackError)
-        }
-    }
-}
-
-impl Drop for CustomPackState {
+impl Drop for CustomPackMethod {
     fn drop(&mut self) {
         unsafe {
-            if let Some(func) = self.custom_datatype.vtable.pack_freefn {
+            if let Some(func) = self.custom_datatype.vtable.state_freefn {
                 let ret = func(self.state);
                 if ret != 0 {
                     panic!("failed to free custom pack state");
@@ -231,48 +182,14 @@ impl Drop for CustomPackState {
     }
 }
 
-struct CustomUnpackState {
-    custom_datatype: CustomDatatype,
-    state: *mut c_void,
-    buf: *mut c_void,
-    count: usize,
-}
-
-impl UnpackState for CustomUnpackState {
-    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
-        let func = self.custom_datatype.vtable.unpackfn.expect("missing unpack() function");
-        let ret = func(self.state, self.buf, self.count, offset, src as *const _, src_size);
-        if ret == 0 {
-            Ok(())
-        } else {
-            Err(DatatypeError::UnpackError)
-        }
-    }
-}
-
-impl Drop for CustomUnpackState {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(func) = self.custom_datatype.vtable.unpack_freefn {
-                let ret = func(self.state);
-                if ret != 0 {
-                    panic!("failed to free custom unpack state");
-                }
-            }
-        }
-    }
-}
-
 /// Create a non-dynamic custom MPI_Datatype.
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Type_create_custom(
-    pack_statefn: c::PackStateFn,
-    unpack_statefn: c::UnpackStateFn,
+    statefn: c::StateFn,
+    state_freefn: c::StateFreeFn,
     queryfn: c::QueryFn,
     packfn: c::PackFn,
     unpackfn: c::UnpackFn,
-    pack_freefn: c::PackStateFreeFn,
-    unpack_freefn: c::UnpackStateFreeFn,
     region_countfn: c::RegionCountFn,
     regionfn: c::RegionFn,
     context: *mut c_void,
@@ -281,13 +198,11 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
     with_context(move |_, cctx| {
         *datatype = cctx.add_custom_datatype(CustomDatatype {
             vtable: CustomDatatypeVTable {
-                pack_statefn,
-                unpack_statefn,
+                statefn,
+                state_freefn,
                 queryfn,
                 packfn,
                 unpackfn,
-                pack_freefn,
-                unpack_freefn,
                 region_countfn,
                 regionfn,
             },

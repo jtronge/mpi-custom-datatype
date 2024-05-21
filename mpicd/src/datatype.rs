@@ -17,134 +17,57 @@ pub enum DatatypeError {
 
 pub type DatatypeResult<T> = std::result::Result<T, DatatypeError>;
 
-/// Kind of data being sent.
-pub enum PackMethod {
-    /// A contiguous datatype, no packing required.
-    Contiguous,
-
-    /// Datatype must be packed with a custom packer.
-    Custom(Box<dyn PackContext>),
-
-    /// Iovec datatype.
-    MemRegions(Box<dyn MemRegionsDatatype>),
-}
-
 /// Immutable datatype to send as a message.
-pub trait Buffer {
+pub trait MessageBuffer {
     /// Return a pointer to the underlying data.
-    fn as_ptr(&self) -> *const u8;
-
-    /// Return a pointer to the underlying data.
-    fn as_mut_ptr(&mut self) -> Option<*mut u8>;
+    fn ptr(&self) -> *mut u8;
 
     /// Return the number of elements.
     fn count(&self) -> usize;
 
     /// Return the pack moethd for the data (i.e. whether it's contiguous or needs to be packed).
-    fn pack_method(&self) -> PackMethod;
+    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        None
+    }
 }
 
-/// Implemented by types that can provide and iovec-send and receive interface,
-/// where the types can be represented as a list of (pointer, size)
-/// regions/fragments of the whole data structure.
-pub trait MemRegionsDatatype {
-    /// Return a vector of memory regions to write into or read from.
-    unsafe fn regions(&self, buf: *mut u8, count: usize) -> DatatypeResult<Vec<(*mut u8, usize)>>;
-}
+pub trait PackMethod {
+    /// Get the total packed size of the buffer.
+    unsafe fn packed_size(&self) -> DatatypeResult<usize>;
 
-/// Trait for managing the pack context for a type.
-pub trait PackContext {
-    /// Return a PackState pointer to start packing a buffer.
-    unsafe fn pack_state(&mut self, src: *const u8, count: usize) -> DatatypeResult<Box<dyn PackState>>;
-
-    /// Return an UnpackState pointer to start unpacking a buffer.
-    unsafe fn unpack_state(&mut self, dst: *mut u8, count: usize) -> DatatypeResult<Box<dyn UnpackState>>;
-
-    /// Return the total bytes required to pack the input buffer.
-    unsafe fn packed_size(&mut self, buf: *const u8, count: usize) -> DatatypeResult<usize>;
-}
-
-pub trait PackState {
     /// Pack the buffer.
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize>;
-}
 
-pub trait UnpackState {
     /// Unpack the buffer.
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()>;
+
+    /// If possible, return memory regions that can be sent directly.
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>>;
 }
 
+/*
 /// Send datatype wrapping the ucx type.
-pub(crate) struct UCXBuffer {
+pub(crate) struct GenericDatatype {
     /// Underlying ucx datatype.
     datatype: ucp_datatype_t,
 
-    /// Pointer to a pack context impl that will be used if this is a ucx generic datatype.
-    pack_context: Option<*mut PackContextHolder>,
-
-    /// Buffer pointer.
-    ptr: *const u8,
-
-    /// Mutable buffer pointer.
-    ptr_mut: Option<*mut u8>,
-
-    /// Number of elements in buffer.
-    count: usize,
-
-    /// Iovec array, if possible for this type.
-    iovec: Option<Vec<ucp_dt_iov_t>>,
+    /// Pointer to a pack context impl that will be used.
+    pack_context: *mut PackContextHolder,
 }
 
-impl UCXBuffer {
+impl GenericDatatype {
     /// Create a new UCX datatype from the buffer.
-    pub(crate) unsafe fn new_type<B: Buffer>(data: &B, ptr: *const u8, ptr_mut: Option<*mut u8>, count: usize) -> UCXBuffer {
-        match data.pack_method() {
-            PackMethod::Contiguous => {
-                let datatype = rust_ucp_dt_make_contig(1) as ucp_datatype_t;
-                UCXBuffer {
-                    datatype,
-                    pack_context: None,
-                    ptr,
-                    ptr_mut,
-                    count,
-                    iovec: None,
-                }
-            }
-            PackMethod::Custom(context) => {
-                // ctx_ptr is free'd in the drop method for UCXBuffer.
-                let ctx_ptr = Box::into_raw(Box::new(PackContextHolder {
-                    context,
-                })) as *mut _;
-                let datatype = create_generic_datatype(ctx_ptr)
-                    .expect("failed to create generic datatype");
+    pub(crate) unsafe fn new<P: Pack>(context: Pack) -> GenericDatatype {
+        // ctx_ptr is free'd in the drop method for UCXBuffer.
+        let pack_context = Box::into_raw(Box::new(PackContextHolder {
+            context,
+        })) as *mut _;
+        let datatype = create_generic_datatype(pack_context)
+            .expect("failed to create generic datatype");
 
-                UCXBuffer {
-                    datatype,
-                    pack_context: Some(ctx_ptr),
-                    ptr,
-                    ptr_mut,
-                    count,
-                    iovec: None,
-                }
-            }
-            PackMethod::MemRegions(iovec) => {
-                let datatype = rust_ucp_dt_make_iov() as ucp_datatype_t;
-                let iovec: Vec<ucp_dt_iov_t> = iovec
-                    .regions(ptr as *mut _, count)
-                    .expect("failed to get iovec")
-                    .iter()
-                    .map(|iov| ucp_dt_iov_t { buffer: iov.0 as *mut _, length: iov.1 })
-                    .collect();
-                let count = iovec.len();
-                UCXBuffer {
-                    datatype,
-                    pack_context: None,
-                    ptr: std::ptr::null(),
-                    ptr_mut: None,
-                    count,
-                    iovec: Some(iovec),
-                }
-            }
+        GenericDatatype {
+            datatype,
+            pack_context,
         }
     }
 
@@ -152,76 +75,36 @@ impl UCXBuffer {
     pub(crate) fn dt_id(&self) -> ucp_datatype_t {
         self.datatype
     }
-
-    /// Get the buffer pointer.
-    pub(crate) fn buf_ptr(&self) -> *const c_void {
-        if let Some(iovec) = self.iovec.as_ref() {
-            iovec.as_ptr() as *const _
-        } else {
-            self.ptr as *const _
-        }
-    }
-
-    /// Get the mutable buffer pointer.
-    pub(crate) fn buf_ptr_mut(&self) -> Option<*mut c_void> {
-        if let Some(iovec) = self.iovec.as_ref() {
-            Some(iovec.as_ptr() as *mut _)
-        } else {
-            self.ptr_mut.map(|ptr| ptr as *mut _)
-        }
-    }
-
-    /// Get the count of items in the buffer.
-    pub(crate) fn buf_count(&self) -> usize {
-        self.count
-    }
 }
 
-impl Drop for UCXBuffer {
+impl Drop for GenericDatatype {
     fn drop(&mut self) {
         unsafe {
-            if let Some(pack_context) = self.pack_context {
-                let _ = Box::from_raw(pack_context);
-            }
+            let _ = Box::from_raw(self.pack_context);
         }
     }
 }
+*/
 
 macro_rules! impl_buffer_primitive {
     ($ty:ty) => {
-        impl Buffer for &[$ty] {
-            fn as_ptr(&self) -> *const u8 {
-                <[$ty]>::as_ptr(self) as *const _
-            }
-
-            fn as_mut_ptr(&mut self) -> Option<*mut u8> {
-                None
+        impl MessageBuffer for &[$ty] {
+            fn ptr(&self) -> *mut u8 {
+                <[$ty]>::as_ptr(self) as *mut _
             }
 
             fn count(&self) -> usize {
                 self.len() * std::mem::size_of::<$ty>()
             }
-
-            fn pack_method(&self) -> PackMethod {
-                PackMethod::Contiguous
-            }
         }
 
-        impl Buffer for &mut [$ty] {
-            fn as_ptr(&self) -> *const u8 {
-                <[$ty]>::as_ptr(self) as *const _
-            }
-
-            fn as_mut_ptr(&mut self) -> Option<*mut u8> {
-                Some(<[$ty]>::as_mut_ptr(self) as *mut _)
+        impl MessageBuffer for &mut [$ty] {
+            fn ptr(&self) -> *mut u8 {
+                <[$ty]>::as_ptr(self) as *mut _
             }
 
             fn count(&self) -> usize {
                 self.len() * std::mem::size_of::<i32>()
-            }
-
-            fn pack_method(&self) -> PackMethod {
-                PackMethod::Contiguous
             }
         }
     };
@@ -238,13 +121,8 @@ impl_buffer_primitive!(i64);
 impl_buffer_primitive!(f32);
 impl_buffer_primitive!(f64);
 
-struct PackContextHolder {
-    context: Box<dyn PackContext>,
-}
-
-enum State {
-    Pack(Box<dyn PackState>),
-    Unpack(Box<dyn UnpackState>),
+struct PackMethodHolder {
+    packer: Box<dyn PackMethod>,
 }
 
 struct StateHolder {
@@ -254,11 +132,8 @@ struct StateHolder {
     /// Number of elements in the buffer.
     count: usize,
 
-    /// The saved context.
-    context: *mut PackContextHolder,
-
-    /// User-provided pack or unpack state.
-    state: State,
+    /// The pack method .
+    pack_method: *mut PackMethodHolder,
 
     /// Packed size of the buffer.
     packed_size: Option<usize>,
@@ -267,9 +142,9 @@ struct StateHolder {
 impl StateHolder {
     /// Get the packed size for the buffer.
     unsafe fn get_packed_size(&self) -> usize {
-        (*self.context)
-            .context
-            .packed_size(self.buffer, self.count)
+        (*self.pack_method)
+            .packer
+            .packed_size()
             .expect("failed to get packed size of buffer")
     }
 }
@@ -282,15 +157,11 @@ unsafe extern "C" fn start_pack(
 ) -> *mut c_void {
     debug!("datatype::start_pack()");
 
-    let context = context as *mut PackContextHolder;
-    let state = (*context).context
-        .pack_state(buffer as *const _, count)
-        .expect("failed to create pack state");
+    let pack_method = context as *mut PackMethodHolder;
     Box::into_raw(Box::new(StateHolder {
         buffer: buffer as *const _,
         count,
-        context,
-        state: State::Pack(state),
+        pack_method,
         packed_size: None,
     })) as *mut _
 }
@@ -303,15 +174,11 @@ unsafe extern "C" fn start_unpack(
 ) -> *mut c_void {
     debug!("datatype::start_unpack()");
 
-    let context = context as *mut PackContextHolder;
-    let state = (*context).context
-        .unpack_state(buffer as *mut _, count)
-        .expect("failed to create pack state");
+    let pack_method = context as *mut PackMethodHolder;
     Box::into_raw(Box::new(StateHolder {
         buffer: buffer as *const _,
         count,
-        context,
-        state: State::Unpack(state),
+        pack_method,
         packed_size: None,
     })) as *mut _
 }
@@ -350,12 +217,10 @@ unsafe extern "C" fn pack(
 
     // Set the max length based on the offset and packed size.
     let max_length = if (offset + max_length) < packed_size { max_length } else { packed_size - offset };
-    let used = match &mut (*state).state {
-        State::Pack(pack) => pack
-            .pack(offset, dest as *mut _, max_length)
-            .expect("failed to pack buffer"),
-        _ => panic!("invalid pack state"),
-    };
+    let used = (*(*state).pack_method)
+        .packer
+        .pack(offset, dest as *mut _, max_length)
+        .expect("failed to pack buffer");
     assert!(used <= max_length);
 
     used
@@ -371,12 +236,10 @@ unsafe extern "C" fn unpack(
     debug!("datatype::unpack(state=., offset={}, src={:?}, length={})", offset, src, length);
 
     let state = state as *mut StateHolder;
-    match &mut (*state).state {
-        State::Unpack(unpack) => unpack
-            .unpack(offset, src as *const _, length)
-            .expect("failed to unpack buffer"),
-        _ => panic!("invalid unpack state"),
-    }
+    (*(*state).pack_method)
+        .packer
+        .unpack(offset, src as *const _, length)
+        .expect("failed to unpack buffer");
 
     UCS_OK
 }
@@ -388,6 +251,7 @@ unsafe extern "C" fn finish(state: *mut c_void) {
     let _ = Box::from_raw(state);
 }
 
+/*
 /// Create a new UCX datatype.
 unsafe fn create_generic_datatype(context: *mut PackContextHolder) -> Result<ucp_datatype_t> {
     let ops = ucp_generic_dt_ops_t {
@@ -405,3 +269,4 @@ unsafe fn create_generic_datatype(context: *mut PackContextHolder) -> Result<ucp
     }
     Ok(datatype.assume_init())
 }
+*/

@@ -14,8 +14,8 @@ struct iovec_type {
     int b[BUFSIZ];
 };
 
-int regions_count(void *buf, MPI_Count count, MPI_Count *region_count);
-int regions(void *buf, MPI_Count count, MPI_Count region_count,
+int regions_count(void *state, void *buf, MPI_Count count, MPI_Count *region_count);
+int regions(void *state, void *buf, MPI_Count count, MPI_Count region_count,
             MPI_Count reg_lens[], void *reg_bases[], MPI_Datatype types[]);
 
 int main(void)
@@ -29,7 +29,8 @@ int main(void)
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    MPI_Type_create_custom(NULL, NULL, NULL, NULL, NULL, NULL, NULL, regions_count, regions, NULL, &cd);
+    MPI_Type_create_custom(NULL, NULL, NULL, NULL, NULL,
+                           regions_count, regions, NULL, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 
@@ -57,13 +58,13 @@ int main(void)
     return 0;
 }
 
-int regions_count(void *buf, MPI_Count count, MPI_Count *region_count)
+int regions_count(void *state, void *buf, MPI_Count count, MPI_Count *region_count)
 {
     *region_count = 2 * count;
     return 0;
 }
 
-int regions(void *buf, MPI_Count count, MPI_Count region_count,
+int regions(void *state, void *buf, MPI_Count count, MPI_Count region_count,
             MPI_Count reg_lens[], void *reg_bases[], MPI_Datatype types[])
 {
     struct iovec_type *real_buf = buf;

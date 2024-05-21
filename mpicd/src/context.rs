@@ -1,9 +1,9 @@
 //! Context handle code for an MPI application.
 use crate::{
     communicator::{self, Communicator},
-    datatype::{Buffer, UCXBuffer},
-    request::{self, Request, RequestStatus, RequestData},
-    Handle,
+    datatype::MessageBuffer,
+    message::{self, PackSendMessage, PackRecvMessage, ContiguousSendMessage, ContiguousRecvMessage},
+    Handle, Status,
 };
 use mpicd_ucx_sys::{
     ucp_request_param_t, ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx,
@@ -30,17 +30,27 @@ impl Context {
         Context { handle }
     }
 
-    unsafe fn internal_isend<B: Buffer>(
+    unsafe fn internal_isend<B: MessageBuffer>(
         &self,
-        data: B,
+        mut data: B,
         dest: i32,
         tag: u64,
     ) -> communicator::Result<<Self as Communicator>::Request> {
         let mut handle = self.handle.borrow_mut();
-        assert!(dest < (handle.size as i32));
-        let endpoint = handle.endpoints[dest as usize].clone();
+        assert!(dest < (handle.system.size as i32));
+        // let endpoint = handle.endpoints[dest as usize].clone();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
 
+        if let Some(packer) = data.pack() {
+            let packer = packer.expect("failed to initialize PackState");
+            let request = PackSendMessage::new(packer, dest, tag);
+            Ok(handle.add_message(request))
+        } else {
+            let request = ContiguousSendMessage::new(data.ptr() as *const _, data.count(), dest, tag);
+            Ok(handle.add_message(request))
+        }
+
+/*
         let ptr = data.as_ptr();
         let count = data.count();
         let datatype = UCXBuffer::new_type(&data, ptr, None, count);
@@ -63,17 +73,18 @@ impl Context {
 
         let request = ucp_tag_send_nbx(
             endpoint,
-            ptr,
-            count,
+            data.ptr() as *const _,
+            data.count(),
             tag,
             &param,
         );
 
         let req_id = handle.add_request(Request::new(request, Some(req_data)));
         Ok(req_id)
+*/
     }
 
-    unsafe fn internal_irecv<B: Buffer>(
+    unsafe fn internal_irecv<B: MessageBuffer>(
         &self,
         mut data: B,
         tag: u64,
@@ -81,6 +92,16 @@ impl Context {
         let mut handle = self.handle.borrow_mut();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
 
+        if let Some(pack_method) = data.pack() {
+            let pack_method = pack_method.expect("failed to initialize pack method");
+            let request = PackRecvMessage::new(pack_method, tag);
+            Ok(handle.add_message(request))
+        } else {
+            let request = ContiguousRecvMessage::new(data.ptr(), data.count(), tag);
+            Ok(handle.add_message(request))
+        }
+
+/*
         let ptr = data.as_ptr();
         let ptr_mut = data.as_mut_ptr();
         let count = data.count();
@@ -118,6 +139,7 @@ impl Context {
 
         let req_id = handle.add_request(Request::new(request, Some(req_data)));
         Ok(req_id)
+*/
     }
 }
 
@@ -125,11 +147,11 @@ impl Communicator for Context {
     type Request = usize;
 
     fn size(&self) -> i32 {
-        self.handle.borrow().size as i32
+        self.handle.borrow().system.size as i32
     }
 
     fn rank(&self) -> i32 {
-        self.handle.borrow().rank as i32
+        self.handle.borrow().system.rank as i32
     }
 
     /// Barrier operation on all processes.
@@ -137,8 +159,8 @@ impl Communicator for Context {
     /// Uses a simple O(n) algorithm.
     fn barrier(&self) {
         unsafe {
-            let size = self.handle.borrow().size as i32;
-            let rank = self.handle.borrow().rank as i32;
+            let size = self.handle.borrow().system.size as i32;
+            let rank = self.handle.borrow().system.rank as i32;
             if rank == 0 {
                 let mut buf = vec![0; 1];
                 let mut reqs = vec![];
@@ -162,23 +184,23 @@ impl Communicator for Context {
         }
     }
 
-    unsafe fn isend<B: Buffer>(
+    unsafe fn isend<B: MessageBuffer>(
         &self,
         data: B,
         dest: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
-        let rank = self.handle.borrow().rank as i32;
+        let rank = self.handle.borrow().system.rank as i32;
         self.internal_isend(data, dest, encode_tag(0, rank, tag))
     }
 
-    unsafe fn irecv<B: Buffer>(
+    unsafe fn irecv<B: MessageBuffer>(
         &self,
         data: B,
         source: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
-        assert!(source < (self.handle.borrow().size as i32));
+        assert!(source < (self.handle.borrow().system.size as i32));
         self.internal_irecv(data, encode_tag(0, source, tag))
     }
 
@@ -186,37 +208,32 @@ impl Communicator for Context {
     unsafe fn waitall(
         &self,
         requests: &[Self::Request],
-    ) -> communicator::Result<Vec<RequestStatus>> {
+    ) -> communicator::Result<Vec<Status>> {
         let mut handle = self.handle.borrow_mut();
-        let mut statuses = vec![RequestStatus::InProgress; requests.len()];
+        let mut statuses = vec![Status::InProgress; requests.len()];
         let mut complete = 0;
 
         while complete < requests.len() {
-            for _ in 0..requests.len() {
-                ucp_worker_progress(handle.worker);
-            }
-
             for (i, req) in requests.iter().enumerate() {
-                if statuses[i] != RequestStatus::InProgress {
+                if statuses[i] != Status::InProgress {
                     continue;
                 }
 
-                match handle.request_status(*req) {
-                    RequestStatus::InProgress => (),
+                match handle.message_progress(*req) {
+                    Status::InProgress => (),
                     status => {
                         statuses[i] = status;
-                        handle.remove_request(*req);
+                        handle.remove_message(*req);
                         complete += 1;
                     }
                 }
+
+                ucp_worker_progress(handle.system.worker);
             }
         }
         Ok(statuses)
     }
 }
-
-/// The tag mask used for receive requests; for now all bits are important.
-const TAG_MASK: u64 = !0;
 
 /// Internal tag to be used for barriers.
 const BARRIER_TAG: u8 = 1;

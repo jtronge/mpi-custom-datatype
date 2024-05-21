@@ -17,13 +17,11 @@ struct datatype1 {
     double b[2];
 };
 
-int pack_state(void *context, const void *src, MPI_Count src_count, void **state);
-int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state);
+int state_new(void *context, const void *src, MPI_Count src_count, void **state);
+int state_free(void *state);
 int query(void *context, const void *buf, MPI_Count count, MPI_Count *size);
 int pack(void *state, const void *buf, MPI_Count count, MPI_Count offset, void *dst, MPI_Count dst_size, MPI_Count *used);
 int unpack(void *state, void *buf, MPI_Count count, MPI_Count offset, const void *src, MPI_Count src_size);
-int pack_state_free(void *state);
-int unpack_state_free(void *state);
 
 int main(void)
 {
@@ -37,9 +35,8 @@ int main(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* Create the type */
-    MPI_Type_create_custom(&pack_state, &unpack_state, &query, &pack,
-                           &unpack, &pack_state_free, &unpack_state_free,
-                           NULL, NULL, NULL, &cd);
+    MPI_Type_create_custom(&state_new, &state_free, &query, &pack,
+                           &unpack, NULL, NULL, NULL, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 
@@ -69,7 +66,7 @@ struct pack_state {
     MPI_Count last_offset;
 };
 
-int pack_state(void *context, const void *src, MPI_Count src_count, void **state)
+int state_new(void *context, const void *src, MPI_Count src_count, void **state)
 {
     struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
     state_tmp->last_offset = 0;
@@ -77,11 +74,9 @@ int pack_state(void *context, const void *src, MPI_Count src_count, void **state
     return 0;
 }
 
-int unpack_state(void *context, void *dst, MPI_Count dst_count, void **state)
+int state_free(void *state)
 {
-    struct pack_state *state_tmp = malloc(sizeof(struct pack_state));
-    state_tmp->last_offset = 0;
-    *state = state_tmp;
+    free(state);
     return 0;
 }
 
@@ -129,17 +124,5 @@ int unpack(void *state, void *buf, MPI_Count count, MPI_Count offset,
     }
 
     pstate->last_offset = offset;
-    return 0;
-}
-
-int pack_state_free(void *state)
-{
-    free(state);
-    return 0;
-}
-
-int unpack_state_free(void *state)
-{
-    free(state);
     return 0;
 }

@@ -26,7 +26,21 @@ pub mod datatype;
 mod pmi;
 use pmi::PMI;
 mod request;
-use request::{Request, RequestStatus};
+mod message;
+use message::Message;
+
+/// Status value for requests and messages.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Status {
+    /// Request is in progress.
+    InProgress,
+
+    /// Request has completed.
+    Complete,
+
+    /// Error occurred.
+    Error(String),
+}
 
 #[derive(Debug, Copy, Clone)]
 pub enum Error {
@@ -55,8 +69,8 @@ pub enum Error {
     InternalError,
 }
 
-/// Handle containing the internal UCP context data and other code.
-pub(crate) struct Handle {
+/// UCP-specific data.
+pub(crate) struct System {
     /// PMI Context.
     pub _pmi: PMI,
 
@@ -66,58 +80,19 @@ pub(crate) struct Handle {
     /// UCP worker.
     pub worker: ucp_worker_h,
 
+    /// UCP endpoints.
+    pub endpoints: Vec<ucp_ep_h>,
+
     /// Number of processes.
     pub size: usize,
 
     /// Rank of this process.
     pub rank: usize,
-
-    /// UCP endpoints.
-    pub endpoints: Vec<ucp_ep_h>,
-
-    /// Current requests.
-    pub requests: Vec<Option<Request>>,
-
-    /// Index of free requests.
-    pub free_requests: Vec<usize>,
 }
 
-impl Handle {
-    /// Add a new request pointer.
-    pub(crate) fn add_request(&mut self, request: Request) -> usize {
-        if let Some(i) = self.free_requests.pop() {
-            assert!(self.requests[i].is_none());
-            let _ = self.requests[i].insert(request);
-            i
-        } else {
-            let i = self.requests.len();
-            self.requests.push(Some(request));
-            i
-        }
-    }
-
-    /// Get the request status.
-    pub(crate) unsafe fn request_status(&self, req_id: usize) -> RequestStatus {
-        let req = self.requests[req_id].as_ref().expect("request is missing");
-        req.status()
-    }
-
-    /// Remove a completed request.
-    pub(crate) unsafe fn remove_request(&mut self, req_id: usize) {
-        let _ = self.requests[req_id].take();
-        self.free_requests.push(req_id);
-    }
-}
-
-impl Drop for Handle {
+impl Drop for System {
     fn drop(&mut self) {
         unsafe {
-            // Free requests.
-            for req in &mut self.requests {
-                if let Some(req) = req.take() {
-                    drop(req);
-                }
-            }
             // Destroy endpoints.
             for ep in &self.endpoints {
                 // For some reason UCP_EP_CLOSE_MODE_FLUSH is causing an
@@ -128,6 +103,66 @@ impl Drop for Handle {
             }
             ucp_worker_destroy(self.worker);
             ucp_cleanup(self.context);
+        }
+    }
+}
+
+/// Handle containing the internal UCP context data and other code.
+pub(crate) struct Handle {
+    /// System data structures.
+    pub system: System,
+
+    /// Current messages.
+    pub messages: Vec<Option<Box<dyn Message>>>,
+
+    /// Index of free messages.
+    pub free_messages: Vec<usize>,
+}
+
+impl Handle {
+    /// Add a new request pointer.
+    pub(crate) fn add_message(&mut self, message: impl Message + 'static) -> usize {
+        let message = Box::new(message);
+        if let Some(i) = self.free_messages.pop() {
+            assert!(self.messages[i].is_none());
+            let _ = self.messages[i].insert(message);
+            i
+        } else {
+            let i = self.messages.len();
+            self.messages.push(Some(message));
+            i
+        }
+    }
+
+    /// Make progress for the specific message.
+    pub(crate) unsafe fn message_progress(&mut self, msg_id: usize) -> Status {
+        let msg = self.messages[msg_id].as_mut().expect("request is missing");
+        msg.progress(&mut self.system)
+    }
+
+    /// Remove a completed message.
+    pub(crate) fn remove_message(&mut self, msg_id: usize) {
+        let _ = self.messages[msg_id].take();
+        self.free_messages.push(msg_id);
+    }
+
+    /// Internal isend method.
+    pub(crate) unsafe fn isend(&mut self) {}
+
+    /// Internal irecv method.
+    pub(crate) unsafe fn irecv(&mut self) {}
+}
+
+impl Drop for Handle {
+    fn drop(&mut self) {
+        unsafe {
+            // Free requests (this must be done before freeing endpoints, etc.).
+            for msg in &mut self.messages {
+                if let Some(msg) = msg.take() {
+                    drop(msg);
+                }
+            }
+            // System data should be dropped here.
         }
     }
 }
@@ -166,7 +201,7 @@ pub fn init() -> Result<Context> {
                 &worker_addr[..10]
             );
             pmi.fence();
-            // let addrs = exchange::address_exchange(rank as usize, &conn_list, &worker_addr);
+
             let mut endpoints = vec![];
             for ep_rank in 0..size {
                 if ep_rank == rank {
@@ -183,14 +218,16 @@ pub fn init() -> Result<Context> {
             }
 
             Ok(Context::new(Rc::new(RefCell::new(Handle {
-                _pmi: pmi,
-                context,
-                worker,
-                size: size as usize,
-                rank: rank as usize,
-                endpoints,
-                requests: vec![],
-                free_requests: vec![],
+                system: System {
+                    _pmi: pmi,
+                    context,
+                    worker,
+                    endpoints,
+                    size: size as usize,
+                    rank: rank as usize,
+                },
+                messages: vec![],
+                free_messages: vec![],
             }))))
         }
     }

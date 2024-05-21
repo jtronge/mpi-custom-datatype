@@ -1,62 +1,119 @@
-//! Request object.
+//! Point-to-point utility functions.
 use std::ffi::c_void;
-use mpicd_ucx_sys::{rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status, ucp_tag_recv_info_t, ucp_request_free, ucs_status_t, UCS_OK, UCS_INPROGRESS};
-use crate::{status_to_string, datatype::UCXBuffer};
+use mpicd_ucx_sys::{
+    rust_ucs_ptr_is_ptr, rust_ucs_ptr_is_err, rust_ucs_ptr_status,
+    ucs_status_t, ucs_status_ptr_t, ucp_ep_h, ucp_worker_h, ucp_datatype_t, ucp_request_param_t,
+    ucp_request_param_t__bindgen_ty_1, ucp_tag_send_nbx, ucp_tag_recv_nbx,
+    ucp_tag_recv_info_t, ucp_request_free, ucp_send_nbx_callback_t, UCP_OP_ATTR_FIELD_DATATYPE, UCP_OP_ATTR_FIELD_CALLBACK,
+    UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL, UCS_OK, UCS_INPROGRESS,
+};
+use crate::{Status, status_to_string};
 
-/// Request status value.
-#[derive(Clone, Debug, PartialEq)]
-pub enum RequestStatus {
-    /// Request is in progress.
-    InProgress,
-
-    /// Request has completed.
-    Complete,
-
-    /// Error occurred.
-    Error(String),
-}
-
-/// Request struct.
 pub(crate) struct Request {
-    /// Request pointer.
-    request: *mut c_void,
+    pub(crate) req: ucs_status_ptr_t,
 
-    /// TODO: Ideally this should be an AtomicBool
-    data: Option<*mut RequestData>,
+    pub(crate) req_data: *mut RequestData,
 }
 
 impl Request {
-    /// Create a new request from a ucp pointer and request data.
-    pub(crate) fn new(request: *mut c_void, data: Option<*mut RequestData>) -> Request {
+    /// Initiate a non-blocking send and return the ucx request.
+    pub(crate) unsafe fn send_nb(
+        endpoint: ucp_ep_h,
+        ptr: *const u8,
+        count: usize,
+        datatype: ucp_datatype_t,
+        tag: u64,
+        send_callback: ucp_send_nbx_callback_t,
+    ) -> Request {
+        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
+        let param = ucp_request_param_t {
+            op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
+                | UCP_OP_ATTR_FIELD_CALLBACK
+                | UCP_OP_ATTR_FIELD_USER_DATA,
+            datatype,
+            cb: ucp_request_param_t__bindgen_ty_1 {
+                send: Some(send_nbx_callback),
+            },
+            user_data: req_data as *mut _,
+            ..Default::default()
+        };
+
+        let req = ucp_tag_send_nbx(
+            endpoint,
+            ptr as *const _,
+            count,
+            tag,
+            &param,
+        );
+
         Request {
-            request,
-            data,
+            req,
+            req_data,
         }
     }
 
-    /// Get the status of this request.
-    pub(crate) unsafe fn status(&self) -> RequestStatus {
-        if rust_ucs_ptr_is_ptr(self.request) == 0 {
-            let status = rust_ucs_ptr_status(self.request);
+    /// Initiate a non-blocking receive and return the ucx request.
+    pub(crate) unsafe fn recv_nb(
+        worker: ucp_worker_h,
+        ptr: *mut u8,
+        count: usize,
+        datatype: ucp_datatype_t,
+        tag: u64,
+    ) -> Request {
+        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
+        let param = ucp_request_param_t {
+            op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
+                | UCP_OP_ATTR_FIELD_CALLBACK
+                | UCP_OP_ATTR_FIELD_USER_DATA
+                | UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
+            datatype,
+            cb: ucp_request_param_t__bindgen_ty_1 {
+                recv: Some(tag_recv_nbx_callback),
+            },
+            user_data: req_data as *mut _,
+            ..Default::default()
+        };
+
+        // debug!("(receive call) data.count() = {}", data.count());
+
+        // NOTE: The correct source rank is encoded in the tag.
+        let req = ucp_tag_recv_nbx(
+            worker,
+            ptr as *mut _,
+            count,
+            tag,
+            TAG_MASK,
+            &param,
+        );
+
+        Request {
+            req,
+            req_data,
+        }
+    }
+
+    pub(crate) unsafe fn status(&self) -> Status {
+        if rust_ucs_ptr_is_ptr(self.req) == 0 {
+            let status = rust_ucs_ptr_status(self.req);
             if status != UCS_OK {
-                RequestStatus::Error(status_to_string(status))
+                Status::Error(status_to_string(status))
             } else {
-                RequestStatus::Complete
+                Status::Complete
             }
-        } else if rust_ucs_ptr_is_err(self.request) != 0 {
-            RequestStatus::Error("Internal pointer failure".to_string())
+        } else if rust_ucs_ptr_is_err(self.req) != 0 {
+            Status::Error("Internal pointer failure".to_string())
         } else {
-            let status = rust_ucs_ptr_status(self.request);
-            if !(**self.data.as_ref().unwrap()).complete {
+            let status = rust_ucs_ptr_status(self.req);
+            if !(*self.req_data.as_ref().unwrap()).complete {
                 if status == UCS_OK {
-                    RequestStatus::Complete
+                    Status::Complete
                 } else if status == UCS_INPROGRESS {
-                    RequestStatus::InProgress
+                    Status::InProgress
                 } else {
-                    RequestStatus::Error(status_to_string(status))
+                    Status::Error(status_to_string(status))
                 }
             } else {
-                RequestStatus::Complete
+                Status::Complete
             }
         }
     }
@@ -65,36 +122,37 @@ impl Request {
 impl Drop for Request {
     fn drop(&mut self) {
         unsafe {
-            if rust_ucs_ptr_is_ptr(self.request) != 0 {
-                ucp_request_free(self.request);
+            if rust_ucs_ptr_is_ptr(self.req) != 0 {
+                ucp_request_free(self.req);
             }
-            if let Some(data) = self.data {
-                let _ = Box::from_raw(data);
-            }
+            let _ = Box::from_raw(self.req_data);
         }
     }
 }
+
+/// The tag mask used for receive requests; for now all bits are important.
+const TAG_MASK: u64 = !0;
 
 /// Request data struct used to hold callback user data for a request.
 pub(crate) struct RequestData {
     /// Request boolean set in the callback.
     complete: bool,
 
-    /// Wraps created datatype and extra context info.
-    _buffer: UCXBuffer,
+    /// Hold onto any datatypes created until completion of request.
+    datatype: ucp_datatype_t,
 }
 
 impl RequestData {
     /// Create a new request data struct for callback user data.
-    pub fn new(_buffer: UCXBuffer) -> RequestData {
+    pub fn new(datatype: ucp_datatype_t) -> RequestData {
         RequestData {
             complete: false,
-            _buffer,
+            datatype,
         }
     }
 }
 
-/// This function is invoked when the status changes for a non-blocking send
+/// This function can be invoked when the status changes for a non-blocking send
 /// request.
 pub(crate) unsafe extern "C" fn send_nbx_callback(
     _req: *mut c_void,
@@ -105,7 +163,7 @@ pub(crate) unsafe extern "C" fn send_nbx_callback(
     (*req_data).complete = status == UCS_OK;
 }
 
-/// This function is invoked when the status changes for a non-blocking receive
+/// This function can be invoked when the status changes for a non-blocking receive
 /// request.
 pub(crate) unsafe extern "C" fn tag_recv_nbx_callback(
     _req: *mut c_void,

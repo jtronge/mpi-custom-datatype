@@ -3,7 +3,7 @@ use mpicd::{
 };
 use std::ffi::{c_int, c_void};
 use crate::{
-    datatype::{BufferPointer, CustomBuffer, ByteBuffer},
+    datatype::{CustomBuffer, ByteBuffer},
     c, consts, with_context,
 };
 
@@ -36,7 +36,7 @@ unsafe fn isend(
     with_context(move |ctx, cctx| {
         let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
             let buffer = CustomBuffer {
-                ptr: BufferPointer::Const(buf as *const _),
+                ptr: buf as *mut _,
                 len: count as usize,
                 custom_datatype,
             };
@@ -48,7 +48,7 @@ unsafe fn isend(
             assert_eq!(datatype, consts::BYTE);
 
             let buffer = ByteBuffer {
-                ptr: BufferPointer::Const(buf as *const _),
+                ptr: buf as *mut _,
                 size: count.try_into().unwrap(),
             };
             ctx
@@ -90,7 +90,7 @@ unsafe fn irecv(
     with_context(move |ctx, cctx| {
         let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
             let buffer = CustomBuffer {
-                ptr: BufferPointer::Mut(buf as *mut _),
+                ptr: buf as *mut _,
                 len: count as usize,
                 custom_datatype,
             };
@@ -102,7 +102,7 @@ unsafe fn irecv(
             assert_eq!(datatype, consts::BYTE);
 
             let buffer = ByteBuffer {
-                ptr: BufferPointer::Mut(buf as *mut _),
+                ptr: buf as *mut _,
                 size: count.try_into().unwrap(),
             };
             ctx

@@ -20,6 +20,8 @@ typedef intptr_t MPI_Request;
 #define MPI_BYTE 1
 
 typedef struct MPI_Status {
+    int count;
+    int cancelled;
     int MPI_SOURCE;
     int MPI_TAG;
     int MPI_ERROR;
@@ -47,18 +49,17 @@ int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status *array_of
 /*
  * All functions return 0 on success and non-zero on failure.
  */
-typedef int (MPI_Type_custom_pack_state_function)(
-    void *context, // Input context, as passed in create function
-    const void *src, // Source buffer to unpack from
-    MPI_Count src_count, // Number of elements in buffer; could represent bytes, element counts, etc.
-    void **state // State to be created for packing
+typedef int (MPI_Type_custom_state_function)(
+    // Input context, as passed in create function
+    void *context,
+    // Object buffer
+    const void *buf,
+    // Number of elements in buffer; could represent bytes, element counts, etc.
+    MPI_Count count,
+    // State to be created for packing
+    void **state
 );
-typedef int (MPI_Type_custom_unpack_state_function)(
-    void *context, // Input context, as passed in create function
-    void *dst, // Destination buffer
-    MPI_Count dst_count, // Number of element in destination buffer; could represent bytes, element counts, etc.
-    void **state // State to be created for unpacking
-);
+/* Query the packed size of the buffer */
 typedef int (MPI_Type_custom_query_function)(
     void *context, // Input context, as passed to create function
     const void *buf, // User-provided buffer (not packed)
@@ -66,26 +67,32 @@ typedef int (MPI_Type_custom_query_function)(
     MPI_Count *packed_size // Output number of bytes to be packed or expected on receive
 );
 typedef int (MPI_Type_custom_pack_function)(
-    void *state, // State information for packing
+    // State information for packing
+    void *state,
     const void *buf,
     MPI_Count count,
-    MPI_Count offset, // Virtual offset in bytes into the packed buffer
-    void *dst, // Destination buffer
-    MPI_Count dst_size, // Number of bytes to be written to destination buffer
+    // Virtual offset in bytes into the packed buffer
+    MPI_Count offset,
+    // Destination buffer
+    void *dst,
+    // Number of bytes to be written to destination buffer
+    MPI_Count dst_size,
     MPI_Count *used
 );
 typedef int (MPI_Type_custom_unpack_function)(
-    void *state, // State information for unpacking
+    // State information for unpacking
+    void *state,
     void *buf,
     MPI_Count count,
-    MPI_Count offset, // Virtual offset in bytes into the buffer being unpacked
-    const void *src, // Incoming buffer to be unpacked
-    MPI_Count src_size // Number of bytes in current buffer to be unpacked
+    // Virtual offset in bytes into the buffer being unpacked
+    MPI_Count offset,
+    // Incoming buffer to be unpacked
+    const void *src,
+    // Number of bytes in current buffer to be unpacked
+    MPI_Count src_size
 );
-typedef int (MPI_Type_custom_pack_state_free_function)(void *state);
-typedef int (MPI_Type_custom_unpack_state_free_function)(void *state);
-
 typedef int (MPI_Type_custom_region_count_function)(
+    void *state,
     // Buffer pointer
     void *buf,
     // Number of elements in send buffer.
@@ -94,6 +101,7 @@ typedef int (MPI_Type_custom_region_count_function)(
     MPI_Count *region_count
 );
 typedef int (MPI_Type_custom_region_function)(
+    void *state,
     // Buffer pointer
     void *buf,
     // Number of elements in send buffer
@@ -107,14 +115,13 @@ typedef int (MPI_Type_custom_region_function)(
     // Types for each region
     MPI_Datatype types[]
 );
+typedef int (MPI_Type_custom_state_free_function)(void *state);
 
-int MPI_Type_create_custom(MPI_Type_custom_pack_state_function *pack_statefn,
-                           MPI_Type_custom_unpack_state_function *unpack_statefn,
+int MPI_Type_create_custom(MPI_Type_custom_state_function *statefn,
+                           MPI_Type_custom_state_free_function *state_freefn,
                            MPI_Type_custom_query_function *queryfn,
                            MPI_Type_custom_pack_function *packfn,
                            MPI_Type_custom_unpack_function *unpackfn,
-                           MPI_Type_custom_pack_state_free_function *pack_freefn,
-                           MPI_Type_custom_unpack_state_free_function *unpack_freefn,
                            MPI_Type_custom_region_count_function *region_countfn,
                            MPI_Type_custom_region_function *regionfn,
                            void *context, // Context pointer to be stored for initializing state

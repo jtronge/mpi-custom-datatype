@@ -7,7 +7,7 @@ pub use latency::{latency, LatencyOptions, LatencyBenchmark};
 mod bw;
 pub use bw::{bw, BandwidthOptions, BandwidthBenchmark};
 mod datatype;
-pub use datatype::{ComplexVec, IovecComplexVec, IovecComplexVecMut};
+pub use datatype::ComplexVec;
 mod random;
 
 /// Generic benchmark args.
@@ -42,9 +42,6 @@ pub enum BenchmarkKind {
 
     /// Custom datatype benchmark.
     Custom,
-
-    /// Iovec benchmark.
-    Iovec,
 }
 
 /// Load benchmark options from a file path.
