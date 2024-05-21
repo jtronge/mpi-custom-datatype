@@ -23,7 +23,6 @@ impl Request {
         count: usize,
         datatype: ucp_datatype_t,
         tag: u64,
-        send_callback: ucp_send_nbx_callback_t,
     ) -> Request {
         let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
         let param = ucp_request_param_t {

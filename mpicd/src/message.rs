@@ -1,10 +1,12 @@
 //! Request object.
 use std::ffi::c_void;
 use mpicd_ucx_sys::{
-    rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status,
-    ucp_tag_recv_info_t, ucp_request_free, ucs_status_t, UCS_OK, UCS_INPROGRESS,
+    rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status, rust_ucp_dt_make_contig,
+    ucp_tag_recv_info_t, ucp_request_free, ucs_status_t, ucp_worker_progress,
+    UCS_OK, UCS_INPROGRESS,
 };
 use crate::{status_to_string, Status, System};
+use crate::request::Request;
 use crate::datatype::PackMethod;
 
 pub trait Message {
@@ -60,8 +62,9 @@ impl Message for PackRecvMessage {
 pub(crate) struct ContiguousSendMessage {
     ptr: *const u8,
     count: usize,
-    dest: i32,
+    dest: usize,
     tag: u64,
+    req: Option<Request>,
 }
 
 impl ContiguousSendMessage {
@@ -69,8 +72,9 @@ impl ContiguousSendMessage {
         ContiguousSendMessage {
             ptr,
             count,
-            dest,
+            dest: dest as usize,
             tag,
+            req: None,
         }
     }
 }
@@ -78,8 +82,19 @@ impl ContiguousSendMessage {
 impl Message for ContiguousSendMessage {
     /// Get the status of this message.
     unsafe fn progress(&mut self, system: &mut System) -> Status {
-        // TODO
-        Status::InProgress
+        if let Some(req) = self.req.as_mut() {
+            ucp_worker_progress(system.worker);
+            req.status()
+        } else {
+            let _ = self.req.insert(Request::send_nb(
+                system.endpoints[self.dest],
+                self.ptr,
+                self.count,
+                rust_ucp_dt_make_contig(1),
+                self.tag,
+            ));
+            Status::InProgress
+        }
     }
 }
 
@@ -88,22 +103,36 @@ pub(crate) struct ContiguousRecvMessage {
     ptr: *mut u8,
     count: usize,
     tag: u64,
+    req: Option<Request>,
 }
 
 impl ContiguousRecvMessage {
     pub(crate) fn new(ptr: *mut u8, count: usize, tag: u64) -> ContiguousRecvMessage {
-            ContiguousRecvMessage {
-                ptr,
-                count,
-                tag,
-            }
+        ContiguousRecvMessage {
+            ptr,
+            count,
+            tag,
+            req: None,
+        }
     }
 }
 
 impl Message for ContiguousRecvMessage {
     /// Get the status of this message.
     unsafe fn progress(&mut self, system: &mut System) -> Status {
+        if let Some(req) = self.req.as_mut() {
+            ucp_worker_progress(system.worker);
+            req.status()
+        } else {
+            let _ = self.req.insert(Request::recv_nb(
+                system.worker,
+                self.ptr,
+                self.count,
+                rust_ucp_dt_make_contig(1),
+                self.tag,
+            ));
+            Status::InProgress
+        }
         // TODO
-        Status::InProgress
     }
 }
