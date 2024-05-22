@@ -22,30 +22,43 @@ fn fill_complex_vec(data: &mut Vec<Vec<i32>>, mut rand: Random, count: usize) {
 
 impl ComplexVec {
     /// Create a new complex vector from a count, random seed, and rank.
-    pub fn new(count: usize, seed: usize) -> ComplexVec {
-        let rand = Random::new(seed);
+    pub fn new(total_count: usize, subvector_size: usize) -> ComplexVec {
         let mut data = vec![];
-        fill_complex_vec(&mut data, rand, count);
+        let mut total = 0;
+        while total < total_count {
+            let remain = total_count - total;
+            let next_size = if remain > subvector_size { subvector_size } else { remain };
+            data.push((0..next_size).map(|i| i.try_into().unwrap()).collect());
+            total += next_size;
+        }
         ComplexVec(data)
     }
 
-    /// Create a complex vector with just a single vec.
-    pub fn single_vec(count: usize) -> ComplexVec {
-        ComplexVec(vec![vec![0; count]])
-    }
-
     /// Update an existing buffer, optimizing to avoid reallocating each time.
-    pub fn update(&mut self, count: usize, seed: usize) {
-        let rand = Random::new(seed);
-
-        if count < 2048 {
+    pub fn update(&mut self, total_count: usize, subvector_size: usize) {
+        if total_count < subvector_size {
             self.0.clear();
-            fill_complex_vec(&mut self.0, rand, count);
+            self.0.push((0..total_count).map(|i| i.try_into().unwrap()).collect())
         } else {
-            let prev_count: usize = self.0.iter().map(|v| v.len()).sum();
-            assert!(count > prev_count);
-            let new_count = count - prev_count;
-            fill_complex_vec(&mut self.0, rand, new_count);
+            let mut total = 0;
+            // Extend any existing subvectors.
+            for subvec in self.0.iter_mut() {
+                if subvec.len() < subvector_size && (total + subvector_size) <= total_count {
+                    subvec.clear();
+                    subvec.resize(subvector_size, 0);
+                }
+                total += subvec.len();
+            }
+
+            // Append new subvectors.
+            while total < total_count {
+                let remain = total_count - total;
+                let next_size = if remain > subvector_size { subvector_size } else { remain };
+                self.0.push((0..next_size).map(|i| i.try_into().unwrap()).collect());
+                total += next_size;
+            }
+
+            assert_eq!(total, total_count);
         }
     }
 

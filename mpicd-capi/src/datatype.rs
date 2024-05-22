@@ -91,7 +91,7 @@ impl PackMethod for CustomPackMethod {
     unsafe fn packed_size(&self) -> DatatypeResult<usize> {
         if let Some(func) = self.custom_datatype.vtable.queryfn {
             let mut packed_size = 0;
-            let ret = func(self.custom_datatype.context, self.ptr as *const _, self.count, &mut packed_size);
+            let ret = func(self.state, self.ptr as *const _, self.count, &mut packed_size);
             if ret == 0 {
                 Ok(packed_size)
             } else {

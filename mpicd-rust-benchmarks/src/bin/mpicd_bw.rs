@@ -8,6 +8,7 @@ struct Benchmark<C: Communicator> {
     kind: BenchmarkKind,
     ctx: C,
     rank: i32,
+    subvector_size: usize,
     buffers: Option<Vec<ComplexVec>>,
 }
 
@@ -20,11 +21,11 @@ impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
             assert_eq!(buffers.len(), window_size);
 
             for (i, buf) in buffers.iter_mut().enumerate() {
-                buf.update(count, i+1);
+                buf.update(count, self.subvector_size);
             }
         } else {
             let buffers = (0..window_size)
-                .map(|i| ComplexVec::new(count, i+1))
+                .map(|i| ComplexVec::new(count, self.subvector_size))
                 .collect();
             let _ = self.buffers.insert(buffers);
         }
@@ -99,6 +100,7 @@ fn main() {
         kind: args.kind,
         ctx,
         rank,
+        subvector_size: args.subvector_size,
         buffers: None,
     };
     mpicd_rust_benchmarks::bw(opts, benchmark, rank);

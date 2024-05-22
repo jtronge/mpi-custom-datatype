@@ -26,7 +26,7 @@ pub type StateFreeFn = Option<unsafe extern "C" fn(state: *mut c_void) -> c_int>
 /// Function for querying the total packed size of a buffer.
 pub type QueryFn = Option<
     unsafe extern "C" fn(
-        context: *mut c_void,
+        state: *mut c_void,
         buf: *const c_void,
         count: Count,
         packed_size: *mut Count,

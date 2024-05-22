@@ -27,21 +27,25 @@ if __name__ == '__main__':
                         help='options file path to run the benchmarks with')
     parser.add_argument('-t', '--type', required=True, choices=('bw', 'latency'),
                         help='benchmark type')
+    parser.add_argument('-s', '--subvector-size', required=True,
+                        help='subvector size to use for benchmarks')
     args = parser.parse_args()
 
     if args.type == 'bw':
         benchmarks = {
             'rsmpi': ['./target/release/rsmpi_bw'],
-            'packed': ['./target/release/mpicd_bw', '--kind', 'packed'],
-            'custom': ['./target/release/mpicd_bw', '--kind', 'custom'],
-            'iovec': ['./target/release/mpicd_bw', '--kind', 'iovec'],
+            'custom': ['./target/release/mpicd_bw', '--kind', 'custom',
+                       '--subvector-size', str(args.subvector_size)],
+            'packed': ['./target/release/mpicd_bw', '--kind', 'packed',
+                       '--subvector-size', str(args.subvector_size)],
         }
     else:
         benchmarks = {
             'rsmpi': ['./target/release/rsmpi_latency'],
-            'packed': ['./target/release/mpicd_latency', '--kind', 'packed'],
-            'custom': ['./target/release/mpicd_latency', '--kind', 'custom'],
-            'iovec': ['./target/release/mpicd_latency', '--kind', 'iovec'],
+            'custom': ['./target/release/mpicd_latency', '--kind', 'custom',
+                       '--subvector-size', str(args.subvector_size)],
+            'packed': ['./target/release/mpicd_latency', '--kind', 'packed',
+                       '--subvector-size', str(args.subvector_size)],
         }
 
     for benchmark_name, benchmark_args in benchmarks.items():

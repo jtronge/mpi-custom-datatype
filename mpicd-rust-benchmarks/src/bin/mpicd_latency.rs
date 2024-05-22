@@ -7,7 +7,7 @@ use mpicd_rust_benchmarks::{
 
 struct Benchmark<C: Communicator> {
     kind: BenchmarkKind,
-    single_vec: bool,
+    subvector_size: usize,
     ctx: C,
     rank: i32,
     sbuf: Option<ComplexVec>,
@@ -31,13 +31,8 @@ unsafe fn inner_code<C: Communicator, S: MessageBuffer, R: MessageBuffer>(ctx: &
 impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
     fn init(&mut self, size: usize) {
         let count = size / std::mem::size_of::<i32>();
-        if self.single_vec {
-            let _ = self.sbuf.insert(ComplexVec::single_vec(count));
-            let _ = self.rbuf.insert(ComplexVec::single_vec(count));
-        } else {
-            let _ = self.sbuf.insert(ComplexVec::new(count, 2333));
-            let _ = self.rbuf.insert(ComplexVec::new(count, 3222));
-        }
+        let _ = self.sbuf.insert(ComplexVec::new(count, self.subvector_size));
+        let _ = self.rbuf.insert(ComplexVec::new(count, self.subvector_size));
         assert_eq!(
             self.rbuf
                 .as_ref()
@@ -81,7 +76,7 @@ fn main() {
 
     let benchmark = Benchmark {
         kind: args.kind,
-        single_vec: args.single_vec,
+        subvector_size: args.subvector_size,
         ctx,
         rank,
         sbuf: None,

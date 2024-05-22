@@ -1,0 +1,6 @@
+min_size: 8
+max_size: 1048576
+window_size: 64
+iterations: 1024
+skip: 10
+warmup_validation: 20

@@ -61,10 +61,14 @@ typedef int (MPI_Type_custom_state_function)(
 );
 /* Query the packed size of the buffer */
 typedef int (MPI_Type_custom_query_function)(
-    void *context, // Input context, as passed to create function
-    const void *buf, // User-provided buffer (not packed)
-    MPI_Count count, // Number of elements in buffer; could represent bytes, element counts, etc.
-    MPI_Count *packed_size // Output number of bytes to be packed or expected on receive
+    // State object
+    void *state,
+    // User-provided buffer (not packed)
+    const void *buf,
+    // Number of elements in buffer; could represent bytes, element counts, etc.
+    MPI_Count count,
+    // Output number of bytes to be packed or expected on receive
+    MPI_Count *packed_size
 );
 typedef int (MPI_Type_custom_pack_function)(
     // State information for packing

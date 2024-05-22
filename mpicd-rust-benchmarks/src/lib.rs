@@ -21,9 +21,9 @@ pub struct BenchmarkArgs {
     #[arg(short, long)]
     pub options_path: String,
 
-    /// Should this test use a single vector?
+    /// Number of sub-vectors to use.
     #[arg(short, long)]
-    pub single_vec: bool,
+    pub subvector_size: usize,
 }
 
 /// RSMPI specific args.
