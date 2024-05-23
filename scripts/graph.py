@@ -28,50 +28,95 @@ def load_average_results(results_path, prefix):
     sizes = run_results[0][0]
     stacked = np.stack([values for _, values in run_results])
     average = np.average(stacked, axis=0)
-    print(average.shape)
-    return sizes, average
+    lower_error = average - np.min(stacked, axis=0)
+    upper_error = np.max(stacked, axis=0) - average
+    return sizes, average, (lower_error, upper_error)
 
 
 def choose_x_label(size):
     """Choose the proper x size label."""
+    if size >= (128 * 1024):
+        size_m = size / 1024 / 1024
+        return f'{size_m}M'
     if size >= 1024:
         size_k = int(size / 1024)
-        return f'{size_k}k'
-    return size
+        return f'{size_k}K'
+    return str(size)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-r', '--results-path', required=True, help='result path')
-    parser.add_argument('-t', '--title', required=True, help='graph title')
-    parser.add_argument('-b', '--benchmark', required=True, choices=('bw', 'latency'), help='benchmark type')
-    args = parser.parse_args()
+KINDS = {
+    'custom': '-r',
+    'packed': ':g',
+    'rsmpi': '-^b',
+}
+LABELS = {
+    'custom': 'custom',
+    'packed': 'manual-pack',
+    'rsmpi': 'rsmpi-bytes-baseline'
+}
 
-    kinds = {
-        'custom': '-r',
-        'packed': ':g',
-        'iovec': '.-k',
-        'rsmpi': '-^b',
-    }
-    labels = {
-        'custom': 'mpicd-custom',
-        'packed': 'mpicd-packed',
-        'iovec': 'mpicd-regions',
-        'rsmpi': 'rsmpi-bytes-baseline'
-    }
-
-    plt.style.use('paper.mplstyle')
+def basic(args):
     fig, ax = plt.subplots()
     ax.set_yscale('log')
-    for name, fmt in kinds.items():
-        sizes, values = load_average_results(args.results_path, name)
+    for name, fmt in KINDS.items():
+        sizes, values, err = load_average_results(args.results_path, name)
+        print(err)
         sizes = [choose_x_label(size) for size in sizes]
-        ax.plot(sizes, values, fmt, label=labels[name])
+        ax.errorbar(x=sizes, y=values, yerr=err, fmt=fmt, label=LABELS[name])
     ax.set_title(args.title)
     ax.set_xlabel('size (bytes)')
     if args.benchmark == 'bw':
         ax.set_ylabel('bandwidth (MB/s)')
     else:
         ax.set_ylabel('latency (µs)')
+    ax.grid(which='both')
     ax.legend()
     plt.show()
+
+
+LATENCY_SIZE_COMPARE_RESULTS = [
+    ('64 bytes', 'results/latency-64s', 'custom', '.:r'),
+    ('128 bytes', 'results/latency-128s', 'custom', 's-.r'),
+    ('512 bytes', 'results/latency-512s', 'custom', 'P--r'),
+    ('1024 bytes', 'results/latency-1024s', 'custom', '*:r'),
+    ('2048 bytes', 'results/latency-2048s', 'custom', 'D-.r'),
+    ('rsmpi-bytes-baseline', 'results/latency-2048s', 'rsmpi', '-^b'),
+    ('manual-pack', 'results/latency-2048s', 'packed', ':g'),
+]
+
+def latency_size_compare(args):
+    fig, ax = plt.subplots()
+    ax.set_yscale('log')
+    for label, path, name, fmt in LATENCY_SIZE_COMPARE_RESULTS:
+        sizes, values, err = load_average_results(path, name)
+        print(err)
+        sizes = [choose_x_label(size) for size in sizes]
+        ax.errorbar(x=sizes, y=values, yerr=err, fmt=fmt, label=label)
+    ax.set_title(args.title)
+    ax.set_xlabel('size (bytes)')
+    ax.set_ylabel('latency (µs)')
+    ax.set_ybound(lower=1)
+    ax.grid(which='both')
+    ax.legend()
+    plt.show()
+
+
+if __name__ == '__main__':
+    plt.style.use('paper.mplstyle')
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+
+    parser_basic = subparsers.add_parser('basic')
+    parser_basic.add_argument('-r', '--results-path', required=True, help='result path')
+    parser_basic.add_argument('-t', '--title', required=True, help='graph title')
+    parser_basic.add_argument('-b', '--benchmark', required=True, choices=('bw', 'latency'), help='benchmark type')
+    parser_basic.set_defaults(handler=basic)
+
+    parser_latency_size_compare = subparsers.add_parser('latency-size-compare',
+                                                        help='display graph for latency subvec size comparison tests')
+    parser_latency_size_compare.add_argument('-t', '--title', required=True, help='graph title')
+    parser_latency_size_compare.set_defaults(handler=latency_size_compare)
+
+    args = parser.parse_args()
+    args.handler(args)

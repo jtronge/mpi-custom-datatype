@@ -1,5 +1,7 @@
 lines.linewidth: 2
-xtick.labelsize: 10
-ytick.labelsize: 10
+lines.markersize: 8
+xtick.labelsize: 12
+ytick.labelsize: 12
 axes.titlesize: 16
 axes.labelsize: 12
+legend.fontsize: 12
