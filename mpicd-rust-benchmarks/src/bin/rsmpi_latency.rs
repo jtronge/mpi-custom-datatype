@@ -33,7 +33,7 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
 
 fn main() {
     let args = RsmpiArgs::parse();
-    let opts: LatencyOptions = mpicd_rust_benchmarks::load_options(&args.options_path);
+    let opts: LatencyOptions = mpicd_rust_benchmarks::load_options(args.options_path);
     let universe = mpi::initialize().expect("failed to initialize rsmpi");
     let world = universe.world();
     let size = world.size();

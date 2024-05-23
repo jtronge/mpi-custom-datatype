@@ -35,7 +35,7 @@ impl MessageBuffer for CustomBuffer {
 
         if ret == 0 {
             Some(Ok(Box::new(CustomPackMethod {
-                custom_datatype: self.custom_datatype.clone(),
+                custom_datatype: self.custom_datatype,
                 state,
                 ptr: self.ptr as *const _,
                 count: self.len,

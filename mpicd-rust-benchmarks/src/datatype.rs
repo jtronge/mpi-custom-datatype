@@ -1,4 +1,5 @@
 //! Datatypes used for benchmarking.
+use mpi::traits::*;
 use mpicd::datatype::{DatatypeResult, MessageBuffer, PackMethod};
 use crate::random::Random;
 
@@ -22,12 +23,12 @@ fn fill_complex_vec(data: &mut Vec<Vec<i32>>, mut rand: Random, count: usize) {
 
 impl ComplexVec {
     /// Create a new complex vector from a count, random seed, and rank.
-    pub fn new(total_count: usize, subvector_size: usize) -> ComplexVec {
+    pub fn new(total_count: usize, subvector_count: usize) -> ComplexVec {
         let mut data = vec![];
         let mut total = 0;
         while total < total_count {
             let remain = total_count - total;
-            let next_size = if remain > subvector_size { subvector_size } else { remain };
+            let next_size = if remain > subvector_count { subvector_count } else { remain };
             data.push((0..next_size).map(|i| i.try_into().unwrap()).collect());
             total += next_size;
         }
@@ -35,17 +36,17 @@ impl ComplexVec {
     }
 
     /// Update an existing buffer, optimizing to avoid reallocating each time.
-    pub fn update(&mut self, total_count: usize, subvector_size: usize) {
-        if total_count < subvector_size {
+    pub fn update(&mut self, total_count: usize, subvector_count: usize) {
+        if total_count < subvector_count {
             self.0.clear();
             self.0.push((0..total_count).map(|i| i.try_into().unwrap()).collect())
         } else {
             let mut total = 0;
             // Extend any existing subvectors.
             for subvec in self.0.iter_mut() {
-                if subvec.len() < subvector_size && (total + subvector_size) <= total_count {
+                if subvec.len() < subvector_count && (total + subvector_count) <= total_count {
                     subvec.clear();
-                    subvec.resize(subvector_size, 0);
+                    subvec.resize(subvector_count, 0);
                 }
                 total += subvec.len();
             }
@@ -53,7 +54,7 @@ impl ComplexVec {
             // Append new subvectors.
             while total < total_count {
                 let remain = total_count - total;
-                let next_size = if remain > subvector_size { subvector_size } else { remain };
+                let next_size = if remain > subvector_count { subvector_count } else { remain };
                 self.0.push((0..next_size).map(|i| i.try_into().unwrap()).collect());
                 total += next_size;
             }
@@ -141,74 +142,14 @@ impl State {
 
 impl PackMethod for State {
     unsafe fn packed_size(&self) -> DatatypeResult<usize> {
-/*
-        let mut size = 0;
-        for i in 0..self.count {
-            let ptr = self.ptr.offset(i as isize);
-            size += (*ptr).len() * std::mem::size_of::<i32>();
-        }
-        Ok(size)
-*/
         Ok(0)
     }
 
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
-/*
-        // Assume that we are packing in order for now.
-        assert_eq!(self.next_offset, offset);
-        let mut elements_left = dst_size / std::mem::size_of::<i32>();
-        let mut used = 0;
-        while elements_left > 0 && self.next_i < self.count {
-            let v = self.ptr.offset(self.next_i as isize);
-            let remain = (*v).len() - self.next_j;
-            let copy_count = if remain > elements_left { elements_left } else { remain };
-            std::ptr::copy_nonoverlapping(
-                (*v).as_ptr().offset(self.next_j as isize) as *const u8,
-                dst.offset(used as isize),
-                copy_count * std::mem::size_of::<i32>(),
-            );
-            elements_left -= copy_count;
-            used += copy_count * std::mem::size_of::<i32>();
-            if (self.next_j + copy_count) < (*v).len() {
-                self.next_j += copy_count;
-            } else {
-                self.next_i += 1;
-                self.next_j = 0;
-            }
-        }
-        self.next_offset += used;
-        Ok(used)
-*/
         Ok(0)
     }
 
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
-/*
-        // Assume that we are packing in order for now.
-        assert_eq!(self.next_offset, offset);
-        assert_eq!(src_size % std::mem::size_of::<i32>(), 0);
-        let mut elements_left = src_size / std::mem::size_of::<i32>();
-        let mut used = 0;
-        while elements_left > 0 && self.next_i < self.count {
-            let v = self.ptr.offset(self.next_i as isize);
-            let remain = (*v).len() - self.next_j;
-            let copy_count = if remain > elements_left { elements_left } else { remain };
-            std::ptr::copy_nonoverlapping(
-                src.offset(used as isize),
-                (*v).as_mut_ptr().offset(self.next_j as isize) as *mut u8,
-                copy_count * std::mem::size_of::<i32>(),
-            );
-            elements_left -= copy_count;
-            used += copy_count * std::mem::size_of::<i32>();
-            if (self.next_j + copy_count) < (*v).len() {
-                self.next_j += copy_count;
-            } else {
-                self.next_i += 1;
-                self.next_j = 0;
-            }
-        }
-        self.next_offset += used;
-*/
         Ok(())
     }
 
@@ -222,5 +163,64 @@ impl PackMethod for State {
                 })
                 .collect()
         )
+    }
+}
+
+#[derive(Equivalence)]
+pub struct StructWithArray {
+    a: i32,
+    b: i32,
+    c: i32,
+    d: f64,
+    data: [i32; 2048],
+}
+
+pub struct StructWithArrayWrapper(Vec<StructWithArray>);
+
+impl MessageBuffer for &StructWithArrayWrapper {
+    fn ptr(&self) -> *mut u8 {
+        self.0.as_ptr() as *mut _
+    }
+
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+
+    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        Some(Ok(Box::new(StructWithArrayState {})))
+    }
+}
+
+impl MessageBuffer for &mut StructWithArrayWrapper {
+    fn ptr(&self) -> *mut u8 {
+        self.0.as_ptr() as *mut _
+    }
+
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+
+    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        Some(Ok(Box::new(StructWithArrayState {})))
+    }
+}
+
+pub struct StructWithArrayState {}
+
+impl PackMethod for StructWithArrayState {
+    unsafe fn packed_size(&self) -> DatatypeResult<usize> {
+        Ok(0)
+    }
+
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
+        Ok(0)
+    }
+
+    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+        Ok(())
+    }
+
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        Ok(vec![])
     }
 }

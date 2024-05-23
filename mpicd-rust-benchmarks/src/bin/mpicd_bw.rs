@@ -15,17 +15,18 @@ struct Benchmark<C: Communicator> {
 impl<C: Communicator> BandwidthBenchmark for Benchmark<C> {
     fn init(&mut self, window_size: usize, size: usize) {
         let count = size / std::mem::size_of::<i32>();
+        let subvector_count = self.subvector_size / std::mem::size_of::<i32>();
 
         if let Some(buffers) = self.buffers.as_mut() {
             // Assume the window size doesn't change between iterations.
             assert_eq!(buffers.len(), window_size);
 
             for (i, buf) in buffers.iter_mut().enumerate() {
-                buf.update(count, self.subvector_size);
+                buf.update(count, subvector_count);
             }
         } else {
             let buffers = (0..window_size)
-                .map(|i| ComplexVec::new(count, self.subvector_size))
+                .map(|i| ComplexVec::new(count, subvector_count))
                 .collect();
             let _ = self.buffers.insert(buffers);
         }

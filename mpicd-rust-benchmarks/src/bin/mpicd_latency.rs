@@ -31,8 +31,9 @@ unsafe fn inner_code<C: Communicator, S: MessageBuffer, R: MessageBuffer>(ctx: &
 impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
     fn init(&mut self, size: usize) {
         let count = size / std::mem::size_of::<i32>();
-        let _ = self.sbuf.insert(ComplexVec::new(count, self.subvector_size));
-        let _ = self.rbuf.insert(ComplexVec::new(count, self.subvector_size));
+        let subvector_count = self.subvector_size / std::mem::size_of::<i32>();
+        let _ = self.sbuf.insert(ComplexVec::new(count, subvector_count));
+        let _ = self.rbuf.insert(ComplexVec::new(count, subvector_count));
         assert_eq!(
             self.rbuf
                 .as_ref()
