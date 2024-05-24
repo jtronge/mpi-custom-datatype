@@ -30,9 +30,9 @@ impl Context {
         Context { handle }
     }
 
-    unsafe fn internal_isend<B: MessageBuffer>(
+    unsafe fn internal_isend<B: MessageBuffer + ?Sized>(
         &self,
-        mut data: B,
+        data: &B,
         dest: i32,
         tag: u64,
     ) -> communicator::Result<<Self as Communicator>::Request> {
@@ -84,20 +84,21 @@ impl Context {
 */
     }
 
-    unsafe fn internal_irecv<B: MessageBuffer>(
+    unsafe fn internal_irecv<B: MessageBuffer + ?Sized>(
         &self,
-        mut data: B,
+        data: &mut B,
         tag: u64,
     ) -> communicator::Result<<Self as Communicator>::Request> {
         let mut handle = self.handle.borrow_mut();
         // let datatype = rust_ucp_dt_make_contig(1) as u64;
 
-        if let Some(pack_method) = data.pack() {
-            let pack_method = pack_method.expect("failed to initialize pack method");
-            let request = PackRecvMessage::new(pack_method, tag);
+        if let Some(unpack_method) = data.unpack() {
+            let unpack_method = unpack_method
+                .expect("failed to initialize pack method");
+            let request = PackRecvMessage::new(unpack_method, tag);
             Ok(handle.add_message(request))
         } else {
-            let request = ContiguousRecvMessage::new(data.ptr(), data.count(), tag);
+            let request = ContiguousRecvMessage::new(data.ptr_mut(), data.count(), tag);
             Ok(handle.add_message(request))
         }
 
@@ -184,9 +185,9 @@ impl Communicator for Context {
         }
     }
 
-    unsafe fn isend<B: MessageBuffer>(
+    unsafe fn isend<B: MessageBuffer + ?Sized>(
         &self,
-        data: B,
+        data: &B,
         dest: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {
@@ -194,9 +195,9 @@ impl Communicator for Context {
         self.internal_isend(data, dest, encode_tag(0, rank, tag))
     }
 
-    unsafe fn irecv<B: MessageBuffer>(
+    unsafe fn irecv<B: MessageBuffer + ?Sized>(
         &self,
-        data: B,
+        data: &mut B,
         source: i32,
         tag: i32,
     ) -> communicator::Result<Self::Request> {

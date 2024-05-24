@@ -1,8 +1,9 @@
 #!/bin/sh
 
-# Install flamegraph with `cargo install flamegraph`
-if [ $OMPI_COMM_WORLD_RANK -eq 0 ]; then
-    exec flamegraph -o out.svg -- $@
-else
-    exec $@
+if [ -z "$FLAMEGRAPH_PATH" ]; then
+    printf "FLAMEGRAPH_PATH must be set in environment\n"
+    exit 1
 fi
+
+# Install flamegraph with `cargo install flamegraph`
+exec flamegraph -o $FLAMEGRAPH_PATH-$OMPI_COMM_WORLD_RANK.svg -- $@

@@ -23,10 +23,10 @@ pub trait Communicator {
     fn barrier(&self);
 
     /// Do a non-blocking send of data to the destination with specified tag.
-    unsafe fn isend<B: MessageBuffer>(&self, data: B, dest: i32, tag: i32) -> Result<Self::Request>;
+    unsafe fn isend<B: MessageBuffer + ?Sized>(&self, data: &B, dest: i32, tag: i32) -> Result<Self::Request>;
 
     /// Do a non-blocking recv of data from the source with the specified tag.
-    unsafe fn irecv<B: MessageBuffer>(&self, data: B, source: i32, tag: i32) -> Result<Self::Request>;
+    unsafe fn irecv<B: MessageBuffer + ?Sized>(&self, data: &mut B, source: i32, tag: i32) -> Result<Self::Request>;
 
     /// Wait for all requests in list to complete.
     unsafe fn waitall(&self, requests: &[Self::Request]) -> Result<Vec<Status>>;

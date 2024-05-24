@@ -116,8 +116,8 @@ impl PMI {
             let node_rank = get::<u16>(proc, PMIX_NODE_RANK.as_ptr() as *const _);
             info!("node_rank = {}", node_rank);
 
-            let univ_size = get::<u32>(proc, PMIX_UNIV_SIZE.as_ptr() as *const _);
-            info!("univ_size = {}", univ_size);
+            // let univ_size = get::<u32>(proc, PMIX_UNIV_SIZE.as_ptr() as *const _);
+            // info!("univ_size = {}", univ_size);
 
             // let local_size = get::<u32>(proc, PMIX_LOCAL_SIZE.as_ptr() as *const _);
             // info!("local_size = {}", local_size);

@@ -1,7 +1,7 @@
 //! Datatype management code.
 use std::ffi::c_void;
 use crate::c;
-use mpicd::datatype::{DatatypeResult, DatatypeError, MessageBuffer, PackMethod};
+use mpicd::datatype::{DatatypeResult, DatatypeError, MessageBuffer, MessageCount, MessagePointer, PackMethod, UnpackMethod, PackedSize};
 use crate::{consts, with_context};
 
 /// Custom buffer type for utilizing pack and unpack functions in C.
@@ -16,16 +16,8 @@ pub(crate) struct CustomBuffer {
     pub(crate) custom_datatype: CustomDatatype,
 }
 
-impl MessageBuffer for CustomBuffer {
-    fn ptr(&self) -> *mut u8 {
-        self.ptr
-    }
-
-    fn count(&self) -> usize {
-        self.len
-    }
-
-    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+impl CustomBuffer {
+    unsafe fn state(&self) -> DatatypeResult<*mut c_void> {
         let mut state: *mut c_void = std::ptr::null_mut();
         let ret = if let Some(func) = self.custom_datatype.vtable.statefn {
             func(self.custom_datatype.context, self.ptr as *const _, self.len, &mut state)
@@ -34,31 +26,59 @@ impl MessageBuffer for CustomBuffer {
         };
 
         if ret == 0 {
-            Some(Ok(Box::new(CustomPackMethod {
-                custom_datatype: self.custom_datatype,
-                state,
-                ptr: self.ptr as *const _,
-                count: self.len,
-            })))
+            Ok(state)
         } else {
-            Some(Err(DatatypeError::StateError))
+            Err(DatatypeError::StateError)
         }
     }
 }
 
-/// Send buffer to be used for MPI_BYTE types.
-pub(crate) struct ByteBuffer {
-    pub(crate) ptr: *mut u8,
-    pub(crate) size: usize,
-}
 
-impl MessageBuffer for ByteBuffer {
-    fn ptr(&self) -> *mut u8 {
-        self.ptr
+impl MessagePointer for CustomBuffer {
+    fn ptr(&self) -> *const u8 {
+        self.ptr as *const _
     }
 
+    fn ptr_mut(&mut self) -> *mut u8 {
+        self.ptr
+    }
+}
+
+impl MessageCount for CustomBuffer {
     fn count(&self) -> usize {
-        self.size
+        self.len
+    }
+}
+
+impl MessageBuffer for CustomBuffer {
+    unsafe fn pack(&self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        let state = self.state();
+        if let Err(err) = state {
+            return Some(Err(err));
+        }
+        let state = state.expect("expected state pointer");
+
+        Some(Ok(Box::new(CustomPackMethod {
+            custom_datatype: self.custom_datatype,
+            state,
+            ptr: self.ptr as *const _,
+            count: self.len,
+        })))
+    }
+
+    unsafe fn unpack(&mut self) -> Option<DatatypeResult<Box<dyn UnpackMethod>>> {
+        let state = self.state();
+        if let Err(err) = state {
+            return Some(Err(err));
+        }
+        let state = state.expect("expected state pointer");
+
+        Some(Ok(Box::new(CustomPackMethod {
+            custom_datatype: self.custom_datatype,
+            state,
+            ptr: self.ptr as *const _,
+            count: self.len,
+        })))
     }
 }
 
@@ -87,49 +107,8 @@ struct CustomPackMethod {
     count: usize,
 }
 
-impl PackMethod for CustomPackMethod {
-    unsafe fn packed_size(&self) -> DatatypeResult<usize> {
-        if let Some(func) = self.custom_datatype.vtable.queryfn {
-            let mut packed_size = 0;
-            let ret = func(self.state, self.ptr as *const _, self.count, &mut packed_size);
-            if ret == 0 {
-                Ok(packed_size)
-            } else {
-                Err(DatatypeError::PackedSizeError)
-            }
-        } else {
-            Ok(0)
-        }
-    }
-
-    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
-        if let Some(func) = self.custom_datatype.vtable.packfn {
-            let mut used = 0;
-            let ret = func(self.state, self.ptr, self.count, offset, dst as *mut _, dst_size, &mut used);
-            if ret == 0 {
-                Ok(used)
-            } else {
-                Err(DatatypeError::PackError)
-            }
-        } else {
-            Ok(0)
-        }
-    }
-
-    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
-        if let Some(func) = self.custom_datatype.vtable.unpackfn {
-            let ret = func(self.state, self.ptr as *mut _, self.count, offset, src as *const _, src_size);
-            if ret == 0 {
-                Ok(())
-            } else {
-                Err(DatatypeError::UnpackError)
-            }
-        } else {
-            Ok(())
-        }
-    }
-
-    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+impl CustomPackMethod {
+    unsafe fn regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
         if self.custom_datatype.vtable.region_countfn.is_none() {
             return Ok(vec![]);
         }
@@ -169,6 +148,62 @@ impl PackMethod for CustomPackMethod {
     }
 }
 
+impl PackedSize for CustomPackMethod {
+    unsafe fn packed_size(&self) -> DatatypeResult<usize> {
+        if let Some(func) = self.custom_datatype.vtable.queryfn {
+            let mut packed_size = 0;
+            let ret = func(self.state, self.ptr as *const _, self.count, &mut packed_size);
+            if ret == 0 {
+                Ok(packed_size)
+            } else {
+                Err(DatatypeError::PackedSizeError)
+            }
+        } else {
+            Ok(0)
+        }
+    }
+}
+
+impl UnpackMethod for CustomPackMethod {
+    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+        if let Some(func) = self.custom_datatype.vtable.unpackfn {
+            let ret = func(self.state, self.ptr as *mut _, self.count, offset, src as *const _, src_size);
+            if ret == 0 {
+                Ok(())
+            } else {
+                Err(DatatypeError::UnpackError)
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    unsafe fn memory_regions(&mut self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        self.regions()
+    }
+}
+
+impl PackMethod for CustomPackMethod {
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
+        if let Some(func) = self.custom_datatype.vtable.packfn {
+            let mut used = 0;
+            let ret = func(self.state, self.ptr, self.count, offset, dst as *mut _, dst_size, &mut used);
+            if ret == 0 {
+                Ok(used)
+            } else {
+                Err(DatatypeError::PackError)
+            }
+        } else {
+            Ok(0)
+        }
+    }
+
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
+        self.regions()
+            .map(|v| v.iter().map(|(ptr, count)| (*ptr as *const _, *count)).collect())
+    }
+}
+
 impl Drop for CustomPackMethod {
     fn drop(&mut self) {
         unsafe {
@@ -181,6 +216,30 @@ impl Drop for CustomPackMethod {
         }
     }
 }
+
+/// Send buffer to be used for MPI_BYTE types.
+pub(crate) struct ByteBuffer {
+    pub(crate) ptr: *mut u8,
+    pub(crate) size: usize,
+}
+
+impl MessagePointer for ByteBuffer {
+    fn ptr(&self) -> *const u8 {
+        self.ptr as *const _
+    }
+
+    fn ptr_mut(&mut self) -> *mut u8 {
+        self.ptr
+    }
+}
+
+impl MessageCount for ByteBuffer {
+    fn count(&self) -> usize {
+        self.size
+    }
+}
+
+impl MessageBuffer for ByteBuffer {}
 
 /// Create a non-dynamic custom MPI_Datatype.
 #[no_mangle]

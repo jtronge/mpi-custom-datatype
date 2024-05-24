@@ -14,7 +14,7 @@ struct Benchmark<C: Communicator> {
     rbuf: Option<ComplexVec>,
 }
 
-unsafe fn inner_code<C: Communicator, S: MessageBuffer, R: MessageBuffer>(ctx: &C, rank: i32, sbuf: S, rbuf: R) {
+unsafe fn inner_code<C: Communicator, S: MessageBuffer + ?Sized, R: MessageBuffer + ?Sized>(ctx: &C, rank: i32, sbuf: &S, rbuf: &mut R) {
     if rank == 0 {
         let sreq = ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1");
         let _ = ctx.waitall(&[sreq]);

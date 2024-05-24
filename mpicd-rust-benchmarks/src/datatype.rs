@@ -1,6 +1,6 @@
 //! Datatypes used for benchmarking.
 use mpi::traits::*;
-use mpicd::datatype::{DatatypeResult, MessageBuffer, PackMethod};
+use mpicd::datatype::{DatatypeResult, MessageCount, MessagePointer, MessageBuffer, PackedSize, PackMethod, UnpackMethod};
 use crate::random::Random;
 
 pub struct ComplexVec(pub Vec<Vec<i32>>);
@@ -83,30 +83,28 @@ impl ComplexVec {
     }
 }
 
-impl MessageBuffer for &ComplexVec {
-    fn ptr(&self) -> *mut u8 {
-        self.0.as_ptr() as *mut _
+impl MessagePointer for ComplexVec {
+    fn ptr(&self) -> *const u8 {
+        self.0.as_ptr() as *const _
     }
 
-    fn count(&self) -> usize {
-        self.0.len()
-    }
-
-    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
-        Some(Ok(Box::new(State::new(self.0.as_ptr() as *mut _, self.0.len()))))
+    fn ptr_mut(&mut self) -> *mut u8 {
+        self.0.as_mut_ptr() as *mut _
     }
 }
 
-impl MessageBuffer for &mut ComplexVec {
-    fn ptr(&self) -> *mut u8 {
-        self.0.as_ptr() as *mut _
-    }
-
+impl MessageCount for ComplexVec {
     fn count(&self) -> usize {
         self.0.len()
     }
+}
 
-    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+impl MessageBuffer for ComplexVec {
+    unsafe fn pack(&self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        Some(Ok(Box::new(State::new(self.0.as_ptr() as *mut _, self.0.len()))))
+    }
+
+    unsafe fn unpack(&mut self) -> Option<DatatypeResult<Box<dyn UnpackMethod>>> {
         Some(Ok(Box::new(State::new(self.0.as_ptr() as *mut _, self.0.len()))))
     }
 }
@@ -140,26 +138,43 @@ impl State {
     }
 }
 
-impl PackMethod for State {
+impl PackedSize for State {
     unsafe fn packed_size(&self) -> DatatypeResult<usize> {
         Ok(0)
     }
+}
 
+impl PackMethod for State {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
         Ok(0)
     }
 
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
+        let outer_vec = self.ptr;
+        // TODO: Note wrong size here....
+        Ok(
+            (0..self.count)
+                .map(|i| {
+                    let v = outer_vec.offset(i as isize);
+                    ((*v).as_ptr() as *const _, (*v).len() * std::mem::size_of::<i32>())
+                })
+                .collect()
+        )
+    }
+}
+
+impl UnpackMethod for State {
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
         Ok(())
     }
 
-    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+    unsafe fn memory_regions(&mut self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
         let outer_vec = self.ptr;
         Ok(
             (0..self.count)
                 .map(|i| {
                     let v = outer_vec.offset(i as isize);
-                    ((*v).as_mut_ptr() as *mut _, (*v).len())
+                    ((*v).as_mut_ptr() as *mut _, (*v).len() * std::mem::size_of::<i32>())
                 })
                 .collect()
         )
@@ -177,50 +192,56 @@ pub struct StructWithArray {
 
 pub struct StructWithArrayWrapper(Vec<StructWithArray>);
 
-impl MessageBuffer for &StructWithArrayWrapper {
-    fn ptr(&self) -> *mut u8 {
-        self.0.as_ptr() as *mut _
-    }
-
+impl MessageCount for StructWithArrayWrapper {
     fn count(&self) -> usize {
         self.0.len()
-    }
-
-    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
-        Some(Ok(Box::new(StructWithArrayState {})))
     }
 }
 
-impl MessageBuffer for &mut StructWithArrayWrapper {
-    fn ptr(&self) -> *mut u8 {
-        self.0.as_ptr() as *mut _
+impl MessagePointer for StructWithArrayWrapper {
+    fn ptr(&self) -> *const u8 {
+        self.0.as_ptr() as *const _
     }
 
-    fn count(&self) -> usize {
-        self.0.len()
+    fn ptr_mut(&mut self) -> *mut u8 {
+        self.0.as_mut_ptr() as *mut _
+    }
+}
+
+impl MessageBuffer for StructWithArrayWrapper {
+    unsafe fn pack(&self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        Some(Ok(Box::new(StructWithArrayState {})))
     }
 
-    unsafe fn pack(&mut self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+    unsafe fn unpack(&mut self) -> Option<DatatypeResult<Box<dyn UnpackMethod>>> {
         Some(Ok(Box::new(StructWithArrayState {})))
     }
 }
 
 pub struct StructWithArrayState {}
 
-impl PackMethod for StructWithArrayState {
+impl PackedSize for StructWithArrayState {
     unsafe fn packed_size(&self) -> DatatypeResult<usize> {
         Ok(0)
     }
+}
 
+impl PackMethod for StructWithArrayState {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
         Ok(0)
     }
 
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
+        Ok(vec![])
+    }
+}
+
+impl UnpackMethod for StructWithArrayState {
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
         Ok(())
     }
 
-    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+    unsafe fn memory_regions(&mut self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
         Ok(vec![])
     }
 }

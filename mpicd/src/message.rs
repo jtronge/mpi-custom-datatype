@@ -7,34 +7,13 @@ use mpicd_ucx_sys::{
 };
 use crate::{status_to_string, Status, System};
 use crate::request::Request;
-use crate::datatype::PackMethod;
+use crate::datatype::{PackMethod, UnpackMethod};
 
 const BUFSIZE: usize = 8192;
 
 pub trait Message {
     /// Progress the message and return the status.
     unsafe fn progress(&mut self, system: &mut System) -> Status;
-}
-
-/// Build up the ucp iovec data for the packed buffer and memory regions.
-fn build_iovdata(packed_buffer: &Vec<u8>, regions: &Vec<(*mut u8, usize)>) -> Vec<ucp_dt_iov_t> {
-    let mut iovdata = vec![];
-    // TODO: Must be careful about moving the data. Perhaps this
-    // should be Pinned in some way?
-    if packed_buffer.len() > 0 {
-        iovdata.push(ucp_dt_iov_t {
-            buffer: packed_buffer.as_ptr() as *mut _,
-            length: packed_buffer.len(),
-        });
-    }
-
-    for (buffer, length) in regions {
-        iovdata.push(ucp_dt_iov_t {
-            buffer: *buffer as *mut _,
-            length: *length,
-        });
-    }
-    iovdata
 }
 
 pub(crate) struct PackSendMessage {
@@ -105,7 +84,23 @@ impl Message for PackSendMessage {
                 .memory_regions()
                 .expect("failed to get memory regions for type");
 
-            let iovdata = build_iovdata(&self.packed_buffer, &regions);
+            let mut iovdata = vec![];
+            // TODO: Must be careful about moving the data. Perhaps this
+            // should be Pinned in some way?
+            if self.packed_buffer.len() > 0 {
+                iovdata.push(ucp_dt_iov_t {
+                    buffer: self.packed_buffer.as_mut_ptr() as *mut _,
+                    length: self.packed_buffer.len(),
+                });
+            }
+
+            for (buffer, length) in regions {
+                iovdata.push(ucp_dt_iov_t {
+                    buffer: buffer as *mut _,
+                    length: length,
+                });
+            }
+
             let count = iovdata.len();
             let _ = self.iovdata.insert(iovdata);
 
@@ -124,7 +119,7 @@ impl Message for PackSendMessage {
 
 pub(crate) struct PackRecvMessage {
     /// Pack method.
-    pack_method: Box<dyn PackMethod>,
+    unpack_method: Box<dyn UnpackMethod>,
 
     /// Message tag.
     tag: u64,
@@ -140,15 +135,15 @@ pub(crate) struct PackRecvMessage {
 }
 
 impl PackRecvMessage {
-    pub(crate) unsafe fn new(pack_method: Box<dyn PackMethod>, tag: u64) -> PackRecvMessage {
+    pub(crate) unsafe fn new(unpack_method: Box<dyn UnpackMethod>, tag: u64) -> PackRecvMessage {
         // Allocate the packed buffer if necessary.
-        let packed_buffer = match pack_method.packed_size() {
+        let packed_buffer = match unpack_method.packed_size() {
             Ok(size) => vec![0; size],
             Err(err) => panic!("Error occured while getting the packed size of a type: {:?}", err),
         };
 
         PackRecvMessage {
-            pack_method,
+            unpack_method,
             tag,
             packed_buffer,
             iovdata: None,
@@ -166,7 +161,7 @@ impl Message for PackRecvMessage {
                 Status::Complete => {
                     if self.packed_buffer.len() > 0 {
                         // Now need to unpack the data.
-                        self.pack_method
+                        self.unpack_method
                             .unpack(0, self.packed_buffer.as_ptr(), self.packed_buffer.len())
                             .expect("failed to unpack the data");
                     }
@@ -176,11 +171,26 @@ impl Message for PackRecvMessage {
             }
         } else {
             // Need to get the iovec data and submit the request.
-            let regions = self.pack_method
+            let regions = self.unpack_method
                 .memory_regions()
                 .expect("failed to get memory regions for type");
 
-            let iovdata = build_iovdata(&self.packed_buffer, &regions);
+            let mut iovdata = vec![];
+            // TODO: Must be careful about moving the data. Perhaps this
+            // should be Pinned in some way?
+            if self.packed_buffer.len() > 0 {
+                iovdata.push(ucp_dt_iov_t {
+                    buffer: self.packed_buffer.as_mut_ptr() as *mut _,
+                    length: self.packed_buffer.len(),
+                });
+            }
+
+            for (buffer, length) in regions {
+                iovdata.push(ucp_dt_iov_t {
+                    buffer: *buffer as *mut _,
+                    length: length,
+                });
+            }
             let count = iovdata.len();
             let _ = self.iovdata.insert(iovdata);
 

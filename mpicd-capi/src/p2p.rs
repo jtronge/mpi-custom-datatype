@@ -41,7 +41,7 @@ unsafe fn isend(
                 custom_datatype,
             };
             ctx
-                .isend(buffer, dest, tag)
+                .isend(&buffer, dest, tag)
                 .expect("failed to send request")
         } else {
             // Assume MPI_BYTE
@@ -52,7 +52,7 @@ unsafe fn isend(
                 size: count.try_into().unwrap(),
             };
             ctx
-                .isend(buffer, dest, tag)
+                .isend(&buffer, dest, tag)
                 .expect("failed to send request")
         };
 
@@ -89,24 +89,24 @@ unsafe fn irecv(
 
     with_context(move |ctx, cctx| {
         let req = if let Some(custom_datatype) = cctx.get_custom_datatype(datatype) {
-            let buffer = CustomBuffer {
+            let mut buffer = CustomBuffer {
                 ptr: buf as *mut _,
                 len: count as usize,
                 custom_datatype,
             };
             ctx
-                .irecv(buffer, source, tag)
+                .irecv(&mut buffer, source, tag)
                 .expect("failed to receive request")
         } else {
             // Assume MPI_BYTE
             assert_eq!(datatype, consts::BYTE);
 
-            let buffer = ByteBuffer {
+            let mut buffer = ByteBuffer {
                 ptr: buf as *mut _,
                 size: count.try_into().unwrap(),
             };
             ctx
-                .irecv(buffer, source, tag)
+                .irecv(&mut buffer, source, tag)
                 .expect("failed to receive request")
         };
 
