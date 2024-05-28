@@ -44,6 +44,7 @@ int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
 int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
               MPI_Comm comm, MPI_Request *request);
 
+int MPI_Wait(MPI_Request *request, MPI_Status *status);
 int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status *array_of_statuses);
 
 /*

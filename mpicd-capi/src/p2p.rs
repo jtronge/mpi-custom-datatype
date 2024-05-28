@@ -144,6 +144,20 @@ pub unsafe extern "C" fn MPI_Irecv(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn MPI_Wait(
+    request: *mut c::Request,
+    status: *mut c::Status,
+) -> c::ReturnStatus {
+    with_context(move |ctx, _cctx| {
+        let req: usize = (*request)
+            .try_into()
+            .expect("failed to cast request value to usize");
+        let _ = ctx.waitall(&[req]);
+        consts::SUCCESS
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn MPI_Waitall(
     count: c_int,
     array_of_requests: *mut c::Request,
