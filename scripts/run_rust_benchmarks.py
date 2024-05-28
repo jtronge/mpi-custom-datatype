@@ -29,6 +29,9 @@ if __name__ == '__main__':
                         help='benchmark type')
     parser.add_argument('-s', '--subvector-size', required=True,
                         help='subvector size to use for benchmarks')
+    parser.add_argument('-d', '--datatype', required=True,
+                        choices=('double-vec', 'struct-vec'),
+                        help='datatype to use for benchmark')
     args = parser.parse_args()
 
     if args.type == 'bw':
@@ -51,6 +54,7 @@ if __name__ == '__main__':
     for benchmark_name, benchmark_args in benchmarks.items():
         full_args = benchmark_args[:]
         full_args.extend(['--options-path', args.options_path])
+        full_args.extend(['--datatype', args.datatype])
         for i in range(4):
             print(f'Running benchmark {benchmark_name}-{i}')
             output_file = str(Path(args.results_path, f'{benchmark_name}-{i}.out'))

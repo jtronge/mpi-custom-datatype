@@ -3,6 +3,15 @@ use mpi::traits::*;
 use mpicd::datatype::{DatatypeResult, MessageCount, MessagePointer, MessageBuffer, PackedSize, PackMethod, UnpackMethod};
 use crate::random::Random;
 
+/// Trait for implementing manual unpack.
+pub trait ManualPack {
+    /// Unpack data from a packed buffer.
+    fn unpack(&mut self, data: &[u8]);
+
+    /// Pack data into a byte buffer and return it.
+    fn pack(&self) -> Vec<u8>;
+}
+
 pub struct ComplexVec(pub Vec<Vec<i32>>);
 
 /// Fill the complex vec with randomly sized vectors summing up to count.
@@ -79,6 +88,29 @@ impl ComplexVec {
             let len = row.len();
             row.copy_from_slice(&packed[pos..pos + len]);
             pos += len;
+        }
+    }
+}
+
+impl ManualPack for ComplexVec {
+    /// Manually pack the complex vec.
+    fn pack(&self) -> Vec<u8> {
+        self.0
+            .iter()
+            .flatten()
+            .map(|i| i32::to_be_bytes(*i))
+            .flatten()
+            .collect()
+    }
+
+    /// Manually unpack from a provided buffer.
+    fn unpack(&mut self, data: &[u8]) {
+        let mut pos = 0;
+        for row in &mut self.0 {
+            for val in row {
+                *val = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+                pos += 4;
+            }
         }
     }
 }
@@ -181,24 +213,29 @@ impl UnpackMethod for State {
     }
 }
 
+pub const STRUCT_VEC_DATA_COUNT: usize = 2048;
+pub const STRUCT_VEC_PACKED_SIZE: usize = 3 * std::mem::size_of::<i32>()
+                                          + std::mem::size_of::<f64>()
+                                          + STRUCT_VEC_DATA_COUNT * std::mem::size_of::<i32>();
+
 #[derive(Equivalence)]
-pub struct StructWithArray {
+pub struct StructVec {
     a: i32,
     b: i32,
     c: i32,
     d: f64,
-    data: [i32; 2048],
+    data: [i32; STRUCT_VEC_DATA_COUNT],
 }
 
-pub struct StructWithArrayWrapper(Vec<StructWithArray>);
+pub struct StructVecArray(Vec<StructVec>);
 
-impl MessageCount for StructWithArrayWrapper {
+impl MessageCount for StructVecArray {
     fn count(&self) -> usize {
         self.0.len()
     }
 }
 
-impl MessagePointer for StructWithArrayWrapper {
+impl MessagePointer for StructVecArray {
     fn ptr(&self) -> *const u8 {
         self.0.as_ptr() as *const _
     }
@@ -208,25 +245,25 @@ impl MessagePointer for StructWithArrayWrapper {
     }
 }
 
-impl MessageBuffer for StructWithArrayWrapper {
+impl MessageBuffer for StructVecArray {
     unsafe fn pack(&self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
-        Some(Ok(Box::new(StructWithArrayState {})))
+        Some(Ok(Box::new(StructVecState {})))
     }
 
     unsafe fn unpack(&mut self) -> Option<DatatypeResult<Box<dyn UnpackMethod>>> {
-        Some(Ok(Box::new(StructWithArrayState {})))
+        Some(Ok(Box::new(StructVecState {})))
     }
 }
 
-pub struct StructWithArrayState {}
+pub struct StructVecState {}
 
-impl PackedSize for StructWithArrayState {
+impl PackedSize for StructVecState {
     unsafe fn packed_size(&self) -> DatatypeResult<usize> {
         Ok(0)
     }
 }
 
-impl PackMethod for StructWithArrayState {
+impl PackMethod for StructVecState {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
         Ok(0)
     }
@@ -236,7 +273,7 @@ impl PackMethod for StructWithArrayState {
     }
 }
 
-impl UnpackMethod for StructWithArrayState {
+impl UnpackMethod for StructVecState {
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
         Ok(())
     }

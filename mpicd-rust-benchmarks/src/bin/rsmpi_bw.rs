@@ -1,8 +1,9 @@
 use clap::Parser;
 use mpi::traits::*;
-use mpicd_rust_benchmarks::{RsmpiArgs, BandwidthOptions, BandwidthBenchmark};
+use mpicd_rust_benchmarks::{RsmpiArgs, BenchmarkDatatype, BandwidthOptions, BandwidthBenchmark};
 
 struct RsmpiBenchmark<C: Communicator> {
+    datatype: BenchmarkDatatype,
     comm: C,
     rank: i32,
     sbuf: Option<Vec<Vec<u8>>>,
@@ -57,6 +58,7 @@ fn main() {
     assert_eq!(size, 2);
 
     let benchmark = RsmpiBenchmark {
+        datatype: args.datatype,
         comm: world,
         rank,
         sbuf: None,

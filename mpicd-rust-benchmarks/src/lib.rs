@@ -17,6 +17,10 @@ pub struct BenchmarkArgs {
     #[arg(value_enum, short, long)]
     pub kind: BenchmarkKind,
 
+    /// Datatype to use.
+    #[arg(short, long)]
+    pub datatype: BenchmarkDatatype,
+
     /// Path for benchmark options file.
     #[arg(short, long)]
     pub options_path: String,
@@ -32,6 +36,10 @@ pub struct RsmpiArgs {
     /// Path for benchmark options file.
     #[arg(short, long)]
     pub options_path: String,
+
+    /// Datatype to use.
+    #[arg(short, long)]
+    pub datatype: BenchmarkDatatype,
 }
 
 /// Kind of benchmark to run.
@@ -42,6 +50,16 @@ pub enum BenchmarkKind {
 
     /// Custom datatype benchmark.
     Custom,
+}
+
+/// Datatype to use for the benchmark.
+#[derive(Clone, Debug, ValueEnum)]
+pub enum BenchmarkDatatype {
+    /// Use the double vec type (a.k.a. ComplexVec).
+    DoubleVec,
+
+    /// Use the struct and vec type.
+    StructVec,
 }
 
 /// Load benchmark options from a file path.

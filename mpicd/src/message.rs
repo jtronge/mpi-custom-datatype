@@ -97,7 +97,7 @@ impl Message for PackSendMessage {
             for (buffer, length) in regions {
                 iovdata.push(ucp_dt_iov_t {
                     buffer: buffer as *mut _,
-                    length: length,
+                    length,
                 });
             }
 
@@ -187,8 +187,8 @@ impl Message for PackRecvMessage {
 
             for (buffer, length) in regions {
                 iovdata.push(ucp_dt_iov_t {
-                    buffer: *buffer as *mut _,
-                    length: length,
+                    buffer: buffer as *mut _,
+                    length,
                 });
             }
             let count = iovdata.len();

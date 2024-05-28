@@ -1,11 +1,12 @@
 use clap::Parser;
 use mpicd::communicator::Communicator;
 use mpicd_rust_benchmarks::{
-    BenchmarkArgs, BenchmarkKind, BandwidthOptions, BandwidthBenchmark, ComplexVec,
+    BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, BandwidthOptions, BandwidthBenchmark, ComplexVec,
 };
 
 struct Benchmark<C: Communicator> {
     kind: BenchmarkKind,
+    datatype: BenchmarkDatatype,
     ctx: C,
     rank: i32,
     subvector_size: usize,
@@ -99,6 +100,7 @@ fn main() {
 
     let benchmark = Benchmark {
         kind: args.kind,
+        datatype: args.datatype,
         ctx,
         rank,
         subvector_size: args.subvector_size,
