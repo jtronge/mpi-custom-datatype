@@ -3,7 +3,6 @@ use mpicd_rust_benchmarks::{RsmpiArgs, BenchmarkDatatype, LatencyBenchmark, Late
 use mpi::traits::*;
 
 struct Benchmark<C: Communicator> {
-    datatype: BenchmarkDatatype,
     comm: C,
     rank: i32,
     sbuf: Option<Vec<u8>>,
@@ -42,7 +41,6 @@ fn main() {
     assert_eq!(size, 2);
 
     let benchmark = Benchmark {
-        datatype: args.datatype,
         comm: world,
         rank,
         sbuf: None,

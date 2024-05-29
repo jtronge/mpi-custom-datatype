@@ -7,7 +7,10 @@ pub use latency::{latency, LatencyOptions, LatencyBenchmark};
 mod bw;
 pub use bw::{bw, BandwidthOptions, BandwidthBenchmark};
 mod datatype;
-pub use datatype::ComplexVec;
+pub use datatype::{
+    ManualPack, ComplexVec, StructVecArray, BenchmarkDatatypeBuffer, RsmpiDatatypeBuffer,
+    STRUCT_VEC_DATA_COUNT, STRUCT_VEC_PACKED_SIZE_TOTAL,
+};
 mod random;
 
 /// Generic benchmark args.
@@ -39,11 +42,11 @@ pub struct RsmpiArgs {
 
     /// Datatype to use.
     #[arg(short, long)]
-    pub datatype: BenchmarkDatatype,
+    pub datatype: RsmpiDatatype,
 }
 
 /// Kind of benchmark to run.
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum BenchmarkKind {
     /// Manual packing benchmark.
     Packed,
@@ -53,12 +56,22 @@ pub enum BenchmarkKind {
 }
 
 /// Datatype to use for the benchmark.
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum BenchmarkDatatype {
     /// Use the double vec type (a.k.a. ComplexVec).
     DoubleVec,
 
     /// Use the struct and vec type.
+    StructVec,
+}
+
+/// Datatype to use for the rsmpi benchmarks.
+#[derive(Copy, Clone, Debug, ValueEnum)]
+pub enum RsmpiDatatype {
+    /// Plain bytes datatype.
+    Bytes,
+
+    /// Struct vec datatype with Equivalence implementation.
     StructVec,
 }
 

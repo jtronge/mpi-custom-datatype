@@ -16,46 +16,18 @@ def run_benchmark(args, output_file):
         print(f'export OMPI_MCA_pml=ucx', file=temp_fp)
         print('mpirun -np 2 -N 1', ' '.join(args), file=temp_fp)
         temp_fp.flush()
-        subprocess.run(['sbatch', '-W', temp_fp.name])
+        subprocess.run(['sbatch', '-W', temp_fp.name], check=True)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--results-path', required=True,
                         help='directory to place results in')
-    parser.add_argument('-o', '--options-path', required=True,
-                        help='options file path to run the benchmarks with')
-    parser.add_argument('-t', '--type', required=True, choices=('bw', 'latency'),
-                        help='benchmark type')
-    parser.add_argument('-s', '--subvector-size', required=True,
-                        help='subvector size to use for benchmarks')
-    parser.add_argument('-d', '--datatype', required=True,
-                        choices=('double-vec', 'struct-vec'),
-                        help='datatype to use for benchmark')
-    args = parser.parse_args()
+    parser.add_argument('-n', '--name', required=True,
+                        help='name of benchmark to run')
+    args, prog_args = parser.parse_known_args()
 
-    if args.type == 'bw':
-        benchmarks = {
-            'rsmpi': ['./target/release/rsmpi_bw'],
-            'custom': ['./target/release/mpicd_bw', '--kind', 'custom',
-                       '--subvector-size', str(args.subvector_size)],
-            'packed': ['./target/release/mpicd_bw', '--kind', 'packed',
-                       '--subvector-size', str(args.subvector_size)],
-        }
-    else:
-        benchmarks = {
-            'rsmpi': ['./target/release/rsmpi_latency'],
-            'custom': ['./target/release/mpicd_latency', '--kind', 'custom',
-                       '--subvector-size', str(args.subvector_size)],
-            'packed': ['./target/release/mpicd_latency', '--kind', 'packed',
-                       '--subvector-size', str(args.subvector_size)],
-        }
-
-    for benchmark_name, benchmark_args in benchmarks.items():
-        full_args = benchmark_args[:]
-        full_args.extend(['--options-path', args.options_path])
-        full_args.extend(['--datatype', args.datatype])
-        for i in range(4):
-            print(f'Running benchmark {benchmark_name}-{i}')
-            output_file = str(Path(args.results_path, f'{benchmark_name}-{i}.out'))
-            run_benchmark(full_args, output_file)
+    for i in range(4):
+        print(f'Running benchmark {args.name}-{i}')
+        output_file = str(Path(args.results_path, f'{args.name}-{i}.out'))
+        run_benchmark(prog_args, output_file)
