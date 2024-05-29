@@ -1,32 +1,56 @@
 use clap::Parser;
-use mpicd_rust_benchmarks::{RsmpiArgs, BenchmarkDatatype, LatencyBenchmark, LatencyOptions};
+use mpicd_rust_benchmarks::{
+    RsmpiArgs, RsmpiDatatype, RsmpiLatencyBenchmarkBuffer, BenchmarkDatatype, LatencyBenchmark,
+    LatencyOptions, StructVecArray,
+};
 use mpi::traits::*;
+use mpi::topology::Process;
 
 struct Benchmark<C: Communicator> {
     comm: C,
     rank: i32,
-    sbuf: Option<Vec<u8>>,
-    rbuf: Option<Vec<u8>>,
+    buffers: RsmpiLatencyBenchmarkBuffer,
+}
+
+fn latency<C, S, R>(rank: i32, proc: Process<C>, sbuf: &S, rbuf: &mut R)
+where
+    C: Communicator,
+    S: Buffer,
+    R: BufferMut,
+{
+    if rank == 0 {
+        proc.send(sbuf);
+        let _ = proc.receive_into(rbuf);
+    } else {
+        let _ = proc.receive_into(rbuf);
+        proc.send(sbuf);
+    }
 }
 
 impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
     fn init(&mut self, size: usize) {
-        let _ = self.sbuf.insert(vec![0; size]);
-        let _ = self.rbuf.insert(vec![0; size]);
+        match self.buffers {
+            RsmpiLatencyBenchmarkBuffer::Bytes(ref mut buffers) => {
+                let _ = buffers.insert((vec![0; size], vec![0; size]));
+            }
+            RsmpiLatencyBenchmarkBuffer::StructVec(ref mut buffers) => {
+                let _ = buffers.insert((StructVecArray::new(size).0, StructVecArray::new(size).0));
+            }
+        }
     }
 
     fn body(&mut self) {
         let next_rank = (self.rank + 1) % 2;
         let proc = self.comm.process_at_rank(next_rank);
-        let sbuf = self.sbuf.as_ref().expect("missing send buffer");
-        let rbuf = self.rbuf.as_mut().expect("missing receive buffer");
-
-        if self.rank == 0 {
-            proc.send(sbuf);
-            let _ = proc.receive_into(rbuf);
-        } else {
-            let _ = proc.receive_into(rbuf);
-            proc.send(sbuf);
+        match self.buffers {
+            RsmpiLatencyBenchmarkBuffer::Bytes(ref mut buffers) => {
+                let (sbuf, rbuf) = buffers.as_mut().expect("missing latency buffers");
+                latency(self.rank, proc, sbuf, rbuf);
+            }
+            RsmpiLatencyBenchmarkBuffer::StructVec(ref mut buffers) => {
+                let (sbuf, rbuf) = buffers.as_mut().expect("missing latency buffers");
+                latency(self.rank, proc, sbuf, rbuf);
+            }
         }
     }
 }
@@ -40,11 +64,14 @@ fn main() {
     let rank = world.rank();
     assert_eq!(size, 2);
 
+    let buffers = match args.datatype {
+        RsmpiDatatype::Bytes => RsmpiLatencyBenchmarkBuffer::Bytes(None),
+        RsmpiDatatype::StructVec => RsmpiLatencyBenchmarkBuffer::StructVec(None),
+    };
     let benchmark = Benchmark {
         comm: world,
         rank,
-        sbuf: None,
-        rbuf: None,
+        buffers,
     };
     mpicd_rust_benchmarks::latency(opts, benchmark, rank);
 }

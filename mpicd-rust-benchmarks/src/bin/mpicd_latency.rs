@@ -2,20 +2,24 @@ use clap::Parser;
 use mpicd::communicator::Communicator;
 use mpicd::datatype::MessageBuffer;
 use mpicd_rust_benchmarks::{
-    BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, ComplexVec, LatencyBenchmark, LatencyOptions,
+    BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, ComplexVec, LatencyBenchmark,
+    LatencyBenchmarkBuffer, LatencyOptions, ManualPack, StructVecArray,
 };
 
 struct Benchmark<C: Communicator> {
     kind: BenchmarkKind,
-    datatype: BenchmarkDatatype,
     subvector_size: usize,
     ctx: C,
     rank: i32,
-    sbuf: Option<ComplexVec>,
-    rbuf: Option<ComplexVec>,
+    buffers: LatencyBenchmarkBuffer,
 }
 
-unsafe fn inner_code<C: Communicator, S: MessageBuffer + ?Sized, R: MessageBuffer + ?Sized>(ctx: &C, rank: i32, sbuf: &S, rbuf: &mut R) {
+unsafe fn inner_code<C: Communicator, B: MessageBuffer + ?Sized>(
+    ctx: &C,
+    rank: i32,
+    sbuf: &B,
+    rbuf: &mut B,
+) {
     if rank == 0 {
         let sreq = ctx.isend(sbuf, 1, 0).expect("failed to send buffer to rank 1");
         let _ = ctx.waitall(&[sreq]);
@@ -29,39 +33,62 @@ unsafe fn inner_code<C: Communicator, S: MessageBuffer + ?Sized, R: MessageBuffe
     }
 }
 
+fn latency<C: Communicator, B: MessageBuffer + ManualPack + ?Sized>(
+    kind: BenchmarkKind,
+    ctx: &C,
+    rank: i32,
+    sbuf: &B,
+    rbuf: &mut B,
+) {
+    unsafe {
+        match kind {
+            BenchmarkKind::Packed => {
+                let packed_sbuf = sbuf.manual_pack();
+                let mut packed_rbuf = vec![0u8; packed_sbuf.len()];
+                inner_code(ctx, rank, &packed_sbuf[..], &mut packed_rbuf[..]);
+                rbuf.manual_unpack(&packed_rbuf);
+            }
+            BenchmarkKind::Custom => {
+                inner_code(ctx, rank, sbuf, rbuf);
+            }
+        }
+    }
+}
+
 impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
     fn init(&mut self, size: usize) {
-        let count = size / std::mem::size_of::<i32>();
-        let subvector_count = self.subvector_size / std::mem::size_of::<i32>();
-        let _ = self.sbuf.insert(ComplexVec::new(count, subvector_count));
-        let _ = self.rbuf.insert(ComplexVec::new(count, subvector_count));
-        assert_eq!(
-            self.rbuf
-                .as_ref()
-                .expect("missing buffer")
-                .0
-                .iter()
-                .map(|v| v.len())
-                .sum::<usize>() * std::mem::size_of::<i32>(),
-            size,
-        );
+        match self.buffers {
+            LatencyBenchmarkBuffer::DoubleVec(ref mut buffers) => {
+                let count = size / std::mem::size_of::<i32>();
+                let subvector_count = self.subvector_size / std::mem::size_of::<i32>();
+                let _ = buffers.insert((ComplexVec::new(count, subvector_count), ComplexVec::new(count, subvector_count)));
+                assert_eq!(
+                    buffers
+                        .as_ref()
+                        .expect("missing buffer")
+                        .0
+                        .0
+                        .iter()
+                        .map(|v| v.len())
+                        .sum::<usize>() * std::mem::size_of::<i32>(),
+                    size,
+                );
+            }
+            LatencyBenchmarkBuffer::StructVec(ref mut buffers) => {
+                let _ = buffers.insert((StructVecArray::new(size), StructVecArray::new(size)));
+            }
+        }
     }
 
     fn body(&mut self) {
-        let sbuf = self.sbuf.as_ref().expect("missing send buffer");
-        let rbuf = self.rbuf.as_mut().expect("missing buffer");
-
-        unsafe {
-            match self.kind {
-                BenchmarkKind::Packed => {
-                    let packed_sbuf = sbuf.pack();
-                    let mut packed_rbuf = vec![0i32; packed_sbuf.len()];
-                    inner_code(&self.ctx, self.rank, &packed_sbuf[..], &mut packed_rbuf[..]);
-                    rbuf.unpack_from(&packed_rbuf);
-                }
-                BenchmarkKind::Custom => {
-                    inner_code(&self.ctx, self.rank, sbuf, rbuf);
-                }
+        match &mut self.buffers {
+            LatencyBenchmarkBuffer::DoubleVec(ref mut buffers) => {
+                let (sbuf, rbuf) = buffers.as_mut().expect("missing buffers");
+                latency(self.kind, &self.ctx, self.rank, sbuf, rbuf);
+            }
+            LatencyBenchmarkBuffer::StructVec(ref mut buffers) => {
+                let (sbuf, rbuf) = buffers.as_mut().expect("missing buffers");
+                latency(self.kind, &self.ctx, self.rank, sbuf, rbuf);
             }
         }
     }
@@ -76,14 +103,16 @@ fn main() {
     let rank = ctx.rank();
     assert_eq!(size, 2);
 
+    let buffers = match args.datatype {
+        BenchmarkDatatype::DoubleVec => LatencyBenchmarkBuffer::DoubleVec(None),
+        BenchmarkDatatype::StructVec => LatencyBenchmarkBuffer::StructVec(None),
+    };
     let benchmark = Benchmark {
         kind: args.kind,
-        datatype: args.datatype,
         subvector_size: args.subvector_size,
         ctx,
         rank,
-        sbuf: None,
-        rbuf: None,
+        buffers,
     };
     mpicd_rust_benchmarks::latency(opts, benchmark, rank);
 }

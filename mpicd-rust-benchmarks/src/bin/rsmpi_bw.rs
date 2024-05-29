@@ -2,7 +2,7 @@ use clap::Parser;
 use mpi::traits::*;
 use mpicd_rust_benchmarks::{
     RsmpiArgs, RsmpiDatatype, RsmpiDatatypeBuffer, BandwidthOptions, BandwidthBenchmark,
-    StructVecArray, STRUCT_VEC_PACKED_SIZE_TOTAL,
+    StructVecArray,
 };
 
 fn bandwidth<C, B>(rank: i32, comm: &C, buffers: &mut Vec<B>)
@@ -50,9 +50,7 @@ impl<C: Communicator> BandwidthBenchmark for RsmpiBenchmark<C> {
                 let _ = buffers.insert(buf);
             }
             RsmpiDatatypeBuffer::StructVec(ref mut buffers) => {
-                assert_eq!(size % STRUCT_VEC_PACKED_SIZE_TOTAL, 0);
-                let count = size / STRUCT_VEC_PACKED_SIZE_TOTAL;
-                let buf = (0..window_size).map(|_| StructVecArray::new(count).0).collect();
+                let buf = (0..window_size).map(|_| StructVecArray::new(size).0).collect();
                 let _ = buffers.insert(buf);
             }
         }

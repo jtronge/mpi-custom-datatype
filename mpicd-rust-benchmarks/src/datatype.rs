@@ -21,6 +21,24 @@ pub enum RsmpiDatatypeBuffer {
     StructVec(Option<Vec<Vec<StructVec>>>)
 }
 
+/// Latency benchmark buffer holder.
+pub enum LatencyBenchmarkBuffer {
+    /// ComplexVec type.
+    DoubleVec(Option<(ComplexVec, ComplexVec)>),
+
+    /// StructVec type.
+    StructVec(Option<(StructVecArray, StructVecArray)>),
+}
+
+/// Latency benchmark buffer holder.
+pub enum RsmpiLatencyBenchmarkBuffer {
+    /// Plain byte buffers.
+    Bytes(Option<(Vec<u8>, Vec<u8>)>),
+
+    /// StructVec type.
+    StructVec(Option<(Vec<StructVec>, Vec<StructVec>)>),
+}
+
 /// Trait for implementing manual unpack.
 pub trait ManualPack {
     /// Unpack data from a packed buffer.
@@ -266,11 +284,17 @@ impl StructVec {
 pub struct StructVecArray(pub Vec<StructVec>);
 
 impl StructVecArray {
-    pub fn new(count: usize) -> StructVecArray {
+    pub fn new(size: usize) -> StructVecArray {
+        assert_eq!(size % STRUCT_VEC_PACKED_SIZE_TOTAL, 0);
+        assert!(size >= STRUCT_VEC_PACKED_SIZE_TOTAL);
+        let count = size / STRUCT_VEC_PACKED_SIZE_TOTAL;
         StructVecArray((0..count).map(|_| StructVec::new()).collect())
     }
 
-    pub fn update(&mut self, count: usize) {
+    pub fn update(&mut self, size: usize) {
+        assert_eq!(size % STRUCT_VEC_PACKED_SIZE_TOTAL, 0);
+        assert!(size >= STRUCT_VEC_PACKED_SIZE_TOTAL);
+        let count = size / STRUCT_VEC_PACKED_SIZE_TOTAL;
         assert!(self.0.len() < count);
         let new = count - self.0.len();
         for _ in 0..new {

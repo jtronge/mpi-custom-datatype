@@ -4,7 +4,6 @@ use mpicd::datatype::MessageBuffer;
 use mpicd_rust_benchmarks::{
     BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, BenchmarkDatatypeBuffer,
     BandwidthOptions, BandwidthBenchmark, ManualPack, ComplexVec, StructVecArray,
-    STRUCT_VEC_PACKED_SIZE_TOTAL,
 };
 
 struct Benchmark<R, C>
@@ -106,18 +105,14 @@ where
                 }
             }
             BenchmarkDatatypeBuffer::StructVec(ref mut buffers) => {
-                assert_eq!(size % STRUCT_VEC_PACKED_SIZE_TOTAL, 0);
-                assert!(size >= STRUCT_VEC_PACKED_SIZE_TOTAL);
-                let count = size / STRUCT_VEC_PACKED_SIZE_TOTAL;
-
                 if let Some(buffers) = buffers.as_mut() {
                     assert_eq!(buffers.len(), window_size);
                     for (i, buf) in buffers.iter_mut().enumerate() {
-                        buf.update(count);
+                        buf.update(size);
                     }
                 } else {
                     let new_buffers = (0..window_size)
-                        .map(|i| StructVecArray::new(count))
+                        .map(|i| StructVecArray::new(size))
                         .collect();
                     let _ = buffers.insert(new_buffers);
                 }

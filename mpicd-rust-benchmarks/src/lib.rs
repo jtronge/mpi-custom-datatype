@@ -9,7 +9,8 @@ pub use bw::{bw, BandwidthOptions, BandwidthBenchmark};
 mod datatype;
 pub use datatype::{
     ManualPack, ComplexVec, StructVecArray, BenchmarkDatatypeBuffer, RsmpiDatatypeBuffer,
-    STRUCT_VEC_DATA_COUNT, STRUCT_VEC_PACKED_SIZE_TOTAL,
+    LatencyBenchmarkBuffer, RsmpiLatencyBenchmarkBuffer, STRUCT_VEC_DATA_COUNT,
+    STRUCT_VEC_PACKED_SIZE_TOTAL,
 };
 mod random;
 
