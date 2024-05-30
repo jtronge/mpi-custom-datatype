@@ -35,3 +35,7 @@ environment.
 
 The Rust benchmarks must be built directly with cargo, by running
 `cargo build --release`. The binaries will be placed in `target/release/`.
+
+### Datatype sources
+
+* <https://htor.inf.ethz.ch/research/datatypes/>

@@ -261,6 +261,7 @@ pub const STRUCT_VEC_PACKED_SIZE_TOTAL: usize = 3 * std::mem::size_of::<i32>()
                                                  + STRUCT_VEC_DATA_COUNT * std::mem::size_of::<i32>();
 
 #[derive(Equivalence)]
+#[repr(C)]
 pub struct StructVec {
     a: i32,
     b: i32,
