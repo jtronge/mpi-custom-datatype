@@ -1,0 +1,7 @@
+# Options file for the packed benchmark, which is taking too long.
+min_size: 65696
+max_size: 65696
+window_size: 64
+iterations: 1024
+skip: 10
+warmup_validation: 20

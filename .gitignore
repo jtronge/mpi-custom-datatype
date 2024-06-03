@@ -3,4 +3,3 @@ build
 **/target
 core.*
 *.perf
-*.svg
