@@ -41,11 +41,14 @@ pub enum RsmpiLatencyBenchmarkBuffer {
 
 /// Trait for implementing manual unpack.
 pub trait ManualPack {
-    /// Unpack data from a packed buffer.
-    fn manual_unpack(&mut self, data: &[u8]);
+    /// Return the size of a packed buffer.
+    fn packed_size(&self) -> usize;
 
     /// Pack data into a byte buffer and return it.
     fn manual_pack(&self) -> Vec<u8>;
+
+    /// Unpack data from a packed buffer.
+    fn manual_unpack(&mut self, data: &[u8]);
 }
 
 pub struct ComplexVec(pub Vec<Vec<i32>>);
@@ -129,6 +132,13 @@ impl ComplexVec {
 }
 
 impl ManualPack for ComplexVec {
+    fn packed_size(&self) -> usize {
+        self.0
+            .iter()
+            .map(|v| v.len())
+            .sum()
+    }
+
     /// Manually pack the complex vec.
     fn manual_pack(&self) -> Vec<u8> {
         self.0
@@ -335,29 +345,8 @@ impl MessageBuffer for StructVecArray {
 }
 
 impl ManualPack for StructVecArray {
-    fn manual_unpack(&mut self, data: &[u8]) {
-        assert_eq!(data.len() % STRUCT_VEC_PACKED_SIZE_TOTAL, 0);
-        assert_eq!(data.len() / STRUCT_VEC_PACKED_SIZE_TOTAL, self.0.len());
-        let mut pos = 0;
-        let array_len = STRUCT_VEC_DATA_COUNT * std::mem::size_of::<i32>();
-        for elem in &mut self.0 {
-            elem.a = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
-            pos += 4;
-            elem.b = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
-            pos += 4;
-            elem.c = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
-            pos += 4;
-            elem.d = f64::from_be_bytes(data[pos..pos+8].try_into().unwrap());
-            pos += 8;
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    data.as_ptr().offset(pos as isize),
-                    elem.data.as_mut_ptr() as *mut u8,
-                    array_len,
-                );
-            }
-            pos += array_len;
-        }
+    fn packed_size(&self) -> usize {
+        self.0.len() * STRUCT_VEC_PACKED_SIZE_TOTAL
     }
 
     fn manual_pack(&self) -> Vec<u8> {
@@ -383,6 +372,31 @@ impl ManualPack for StructVecArray {
             pos += array_len;
         }
         data
+    }
+
+    fn manual_unpack(&mut self, data: &[u8]) {
+        assert_eq!(data.len() % STRUCT_VEC_PACKED_SIZE_TOTAL, 0);
+        assert_eq!(data.len() / STRUCT_VEC_PACKED_SIZE_TOTAL, self.0.len());
+        let mut pos = 0;
+        let array_len = STRUCT_VEC_DATA_COUNT * std::mem::size_of::<i32>();
+        for elem in &mut self.0 {
+            elem.a = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.b = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.c = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.d = f64::from_be_bytes(data[pos..pos+8].try_into().unwrap());
+            pos += 8;
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    data.as_ptr().offset(pos as isize),
+                    elem.data.as_mut_ptr() as *mut u8,
+                    array_len,
+                );
+            }
+            pos += array_len;
+        }
     }
 }
 

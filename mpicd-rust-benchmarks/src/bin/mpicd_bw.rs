@@ -53,7 +53,8 @@ where
                 BenchmarkKind::Packed => {
                     // Receive the buffers packed.
                     let mut reqs = vec![];
-                    let mut packed_rbufs = buffers.iter().map(|buf| buf.manual_pack()).collect::<Vec<Vec<u8>>>();
+                    // let mut packed_rbufs = buffers.iter().map(|buf| buf.manual_pack()).collect::<Vec<Vec<u8>>>();
+                    let mut packed_rbufs = buffers.iter().map(|buf| vec![0; buf.packed_size()]).collect::<Vec<Vec<u8>>>();
                     for packed_rbuf in &mut packed_rbufs {
                         reqs.push(ctx.irecv(&mut packed_rbuf[..], 0, 0).expect("failed to receive packed buffer from rank 0"));
                     }
