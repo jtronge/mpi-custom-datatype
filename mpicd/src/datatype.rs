@@ -1,11 +1,3 @@
-use std::ffi::c_void;
-use std::mem::MaybeUninit;
-use log::debug;
-use mpicd_ucx_sys::{
-    rust_ucp_dt_make_contig, rust_ucp_dt_make_iov, ucp_datatype_t, ucp_dt_create_generic, ucp_generic_dt_ops_t, ucp_dt_iov_t, ucs_status_t, UCS_OK,
-};
-use crate::{Result, Error};
-
 #[derive(Copy, Clone, Debug)]
 pub enum DatatypeError {
     PackError,

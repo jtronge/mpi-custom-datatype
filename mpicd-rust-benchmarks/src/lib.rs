@@ -8,11 +8,10 @@ mod bw;
 pub use bw::{bw, BandwidthOptions, BandwidthBenchmark};
 mod datatype;
 pub use datatype::{
-    ManualPack, ComplexVec, StructVecArray, BenchmarkDatatypeBuffer, RsmpiDatatypeBuffer,
-    LatencyBenchmarkBuffer, RsmpiLatencyBenchmarkBuffer, STRUCT_VEC_DATA_COUNT,
-    STRUCT_VEC_PACKED_SIZE_TOTAL,
+    ManualPack, ComplexVec, StructVecArray, StructSimpleArray, BenchmarkDatatypeBuffer,
+    RsmpiDatatypeBuffer, LatencyBenchmarkBuffer, RsmpiLatencyBenchmarkBuffer,
+    STRUCT_VEC_DATA_COUNT, STRUCT_VEC_PACKED_SIZE_TOTAL,
 };
-mod random;
 
 /// Generic benchmark args.
 #[derive(Parser)]
@@ -64,6 +63,9 @@ pub enum BenchmarkDatatype {
 
     /// Use the struct and vec type.
     StructVec,
+
+    /// Use the simple struct type.
+    StructSimple,
 }
 
 /// Datatype to use for the rsmpi benchmarks.
@@ -74,6 +76,9 @@ pub enum RsmpiDatatype {
 
     /// Struct vec datatype with Equivalence implementation.
     StructVec,
+
+    /// Use the simple struct type.
+    StructSimple,
 }
 
 /// Load benchmark options from a file path.

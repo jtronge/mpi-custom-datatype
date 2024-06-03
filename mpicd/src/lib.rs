@@ -145,25 +145,17 @@ impl Handle {
         let _ = self.messages[msg_id].take();
         self.free_messages.push(msg_id);
     }
-
-    /// Internal isend method.
-    pub(crate) unsafe fn isend(&mut self) {}
-
-    /// Internal irecv method.
-    pub(crate) unsafe fn irecv(&mut self) {}
 }
 
 impl Drop for Handle {
     fn drop(&mut self) {
-        unsafe {
-            // Free requests (this must be done before freeing endpoints, etc.).
-            for msg in &mut self.messages {
-                if let Some(msg) = msg.take() {
-                    drop(msg);
-                }
+        // Free requests (this must be done before freeing endpoints, etc.).
+        for msg in &mut self.messages {
+            if let Some(msg) = msg.take() {
+                drop(msg);
             }
-            // System data should be dropped here.
         }
+        // System data should be dropped here.
     }
 }
 

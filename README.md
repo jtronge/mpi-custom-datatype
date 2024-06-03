@@ -36,6 +36,10 @@ environment.
 The Rust benchmarks must be built directly with cargo, by running
 `cargo build --release`. The binaries will be placed in `target/release/`.
 
+### UCX environment
+
+Make sure to set `UCX_RNDV_THRESH=2M` for running the benchmarks.
+
 ### Datatype sources
 
 * <https://htor.inf.ethz.ch/research/datatypes/>

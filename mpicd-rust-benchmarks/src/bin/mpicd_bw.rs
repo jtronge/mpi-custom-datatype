@@ -4,6 +4,7 @@ use mpicd::datatype::MessageBuffer;
 use mpicd_rust_benchmarks::{
     BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, BenchmarkDatatypeBuffer,
     BandwidthOptions, BandwidthBenchmark, ManualPack, ComplexVec, StructVecArray,
+    StructSimpleArray,
 };
 
 struct Benchmark<R, C>
@@ -95,12 +96,12 @@ where
                     // Assume the window size doesn't change between iterations.
                     assert_eq!(buffers.len(), window_size);
     
-                    for (i, buf) in buffers.iter_mut().enumerate() {
+                    for buf in buffers.iter_mut() {
                         buf.update(count, subvector_count);
                     }
                 } else {
                     let new_buffers = (0..window_size)
-                        .map(|i| ComplexVec::new(count, subvector_count))
+                        .map(|_| ComplexVec::new(count, subvector_count))
                         .collect();
                     let _ = buffers.insert(new_buffers);
                 }
@@ -108,12 +109,25 @@ where
             BenchmarkDatatypeBuffer::StructVec(ref mut buffers) => {
                 if let Some(buffers) = buffers.as_mut() {
                     assert_eq!(buffers.len(), window_size);
-                    for (i, buf) in buffers.iter_mut().enumerate() {
+                    for buf in buffers.iter_mut() {
                         buf.update(size);
                     }
                 } else {
                     let new_buffers = (0..window_size)
-                        .map(|i| StructVecArray::new(size))
+                        .map(|_| StructVecArray::new(size))
+                        .collect();
+                    let _ = buffers.insert(new_buffers);
+                }
+            }
+            BenchmarkDatatypeBuffer::StructSimple(ref mut buffers) => {
+                if let Some(buffers) = buffers.as_mut() {
+                    assert_eq!(buffers.len(), window_size);
+                    for buf in buffers.iter_mut() {
+                        buf.update(size);
+                    }
+                } else {
+                    let new_buffers = (0..window_size)
+                        .map(|_| StructSimpleArray::new(size))
                         .collect();
                     let _ = buffers.insert(new_buffers);
                 }
@@ -128,6 +142,10 @@ where
                 bandwidth(self.rank, &self.ctx, self.kind, buffers);
             }
             BenchmarkDatatypeBuffer::StructVec(ref mut buffers) => {
+                let buffers = buffers.as_mut().expect("missing buffers");
+                bandwidth(self.rank, &self.ctx, self.kind, buffers);
+            }
+            BenchmarkDatatypeBuffer::StructSimple(ref mut buffers) => {
                 let buffers = buffers.as_mut().expect("missing buffers");
                 bandwidth(self.rank, &self.ctx, self.kind, buffers);
             }
@@ -147,6 +165,7 @@ fn main() {
     let buffers = match args.datatype {
         BenchmarkDatatype::DoubleVec => BenchmarkDatatypeBuffer::DoubleVec(None),
         BenchmarkDatatype::StructVec => BenchmarkDatatypeBuffer::StructVec(None),
+        BenchmarkDatatype::StructSimple => BenchmarkDatatypeBuffer::StructSimple(None),
     };
     let benchmark = Benchmark {
         kind: args.kind,

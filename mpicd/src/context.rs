@@ -2,18 +2,12 @@
 use crate::{
     communicator::{self, Communicator},
     datatype::MessageBuffer,
-    message::{self, PackSendMessage, PackRecvMessage, ContiguousSendMessage, ContiguousRecvMessage},
+    message::{PackSendMessage, PackRecvMessage, ContiguousSendMessage, ContiguousRecvMessage},
     Handle, Status,
 };
-use mpicd_ucx_sys::{
-    ucp_request_param_t, ucp_request_param_t__bindgen_ty_1, ucp_tag_recv_nbx,
-    ucp_tag_send_nbx, ucp_worker_progress, UCP_OP_ATTR_FIELD_CALLBACK,
-    UCP_OP_ATTR_FIELD_DATATYPE, UCP_OP_ATTR_FIELD_USER_DATA,
-    UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
-};
+use mpicd_ucx_sys::ucp_worker_progress;
 use std::cell::RefCell;
 use std::rc::Rc;
-use log::debug;
 
 /// Context handle.
 ///

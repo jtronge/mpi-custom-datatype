@@ -1,7 +1,7 @@
 use clap::Parser;
 use mpicd_rust_benchmarks::{
-    RsmpiArgs, RsmpiDatatype, RsmpiLatencyBenchmarkBuffer, BenchmarkDatatype, LatencyBenchmark,
-    LatencyOptions, StructVecArray,
+    RsmpiArgs, RsmpiDatatype, RsmpiLatencyBenchmarkBuffer, LatencyBenchmark,
+    LatencyOptions, StructVecArray, StructSimpleArray,
 };
 use mpi::traits::*;
 use mpi::topology::Process;
@@ -36,6 +36,9 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
             RsmpiLatencyBenchmarkBuffer::StructVec(ref mut buffers) => {
                 let _ = buffers.insert((StructVecArray::new(size).0, StructVecArray::new(size).0));
             }
+            RsmpiLatencyBenchmarkBuffer::StructSimple(ref mut buffers) => {
+                let _ = buffers.insert((StructSimpleArray::new(size).0, StructSimpleArray::new(size).0));
+            }
         }
     }
 
@@ -48,6 +51,10 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
                 latency(self.rank, proc, sbuf, rbuf);
             }
             RsmpiLatencyBenchmarkBuffer::StructVec(ref mut buffers) => {
+                let (sbuf, rbuf) = buffers.as_mut().expect("missing latency buffers");
+                latency(self.rank, proc, sbuf, rbuf);
+            }
+            RsmpiLatencyBenchmarkBuffer::StructSimple(ref mut buffers) => {
                 let (sbuf, rbuf) = buffers.as_mut().expect("missing latency buffers");
                 latency(self.rank, proc, sbuf, rbuf);
             }
@@ -67,6 +74,7 @@ fn main() {
     let buffers = match args.datatype {
         RsmpiDatatype::Bytes => RsmpiLatencyBenchmarkBuffer::Bytes(None),
         RsmpiDatatype::StructVec => RsmpiLatencyBenchmarkBuffer::StructVec(None),
+        RsmpiDatatype::StructSimple => RsmpiLatencyBenchmarkBuffer::StructSimple(None),
     };
     let benchmark = Benchmark {
         comm: world,

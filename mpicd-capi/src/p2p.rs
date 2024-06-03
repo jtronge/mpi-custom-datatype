@@ -146,7 +146,7 @@ pub unsafe extern "C" fn MPI_Irecv(
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Wait(
     request: *mut c::Request,
-    status: *mut c::Status,
+    _status: *mut c::Status,
 ) -> c::ReturnStatus {
     with_context(move |ctx, _cctx| {
         let req: usize = (*request)

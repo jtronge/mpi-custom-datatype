@@ -5,7 +5,7 @@ use mpicd_pmix_sys::{
     PMIx_Commit, PMIx_Error_string, PMIx_Fence, PMIx_Finalize, PMIx_Get, PMIx_Init,
     PMIx_Initialized, PMIx_Put, PMIx_Value_unload, PMIx_Value_free,
     PMIX_BYTE_OBJECT, PMIX_GLOBAL, PMIX_LOCAL_RANK, PMIX_NODE_RANK,
-    PMIX_SUCCESS, PMIX_UINT16, PMIX_UINT32, PMIX_UNIV_SIZE,
+    PMIX_SUCCESS, PMIX_UINT16, PMIX_UINT32,
 };
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::mem::MaybeUninit;

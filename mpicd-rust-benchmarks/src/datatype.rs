@@ -1,7 +1,6 @@
 //! Datatypes used for benchmarking.
 use mpi::traits::*;
 use mpicd::datatype::{DatatypeResult, MessageCount, MessagePointer, MessageBuffer, PackedSize, PackMethod, UnpackMethod};
-use crate::random::Random;
 
 /// Benchmark datatype buffer holder.
 pub enum BenchmarkDatatypeBuffer {
@@ -10,6 +9,9 @@ pub enum BenchmarkDatatypeBuffer {
 
     /// StructVec type.
     StructVec(Option<Vec<StructVecArray>>),
+
+    /// StructSimple type.
+    StructSimple(Option<Vec<StructSimpleArray>>),
 }
 
 /// Datatype buffer for rsmpi benchmarks.
@@ -18,7 +20,10 @@ pub enum RsmpiDatatypeBuffer {
     Bytes(Option<Vec<Vec<u8>>>),
 
     /// StructVec type.
-    StructVec(Option<Vec<Vec<StructVec>>>)
+    StructVec(Option<Vec<Vec<StructVec>>>),
+
+    /// StructSimple type.
+    StructSimple(Option<Vec<Vec<StructSimple>>>),
 }
 
 /// Latency benchmark buffer holder.
@@ -28,6 +33,9 @@ pub enum LatencyBenchmarkBuffer {
 
     /// StructVec type.
     StructVec(Option<(StructVecArray, StructVecArray)>),
+
+    /// StructSimple type.
+    StructSimple(Option<(StructSimpleArray, StructSimpleArray)>),
 }
 
 /// Latency benchmark buffer holder.
@@ -37,6 +45,9 @@ pub enum RsmpiLatencyBenchmarkBuffer {
 
     /// StructVec type.
     StructVec(Option<(Vec<StructVec>, Vec<StructVec>)>),
+
+    /// StructVec type.
+    StructSimple(Option<(Vec<StructSimple>, Vec<StructSimple>)>),
 }
 
 /// Trait for implementing manual unpack.
@@ -52,22 +63,6 @@ pub trait ManualPack {
 }
 
 pub struct ComplexVec(pub Vec<Vec<i32>>);
-
-/// Fill the complex vec with randomly sized vectors summing up to count.
-fn fill_complex_vec(data: &mut Vec<Vec<i32>>, mut rand: Random, count: usize) {
-    let mut total = 0;
-    while total < count {
-        let len = rand.value() % count;
-        let len = if (total + len) > count {
-            count - total
-        } else {
-            len
-        };
-        let inner_data = (0..len).map(|i| (total + i) as i32).collect();
-        data.push(inner_data);
-        total += len;
-    }
-}
 
 impl ComplexVec {
     /// Create a new complex vector from a count, random seed, and rank.
@@ -193,15 +188,6 @@ pub struct State {
 
     /// Number of vectors.
     count: usize,
-
-    /// Next expected index into outer vector.
-    next_i: usize,
-
-    /// Next expected index into inner vector.
-    next_j: usize,
-
-    /// Next expected offset.
-    next_offset: usize,
 }
 
 impl State {
@@ -209,9 +195,6 @@ impl State {
         State {
             ptr,
             count,
-            next_i: 0,
-            next_j: 0,
-            next_offset: 0,
         }
     }
 }
@@ -223,7 +206,7 @@ impl PackedSize for State {
 }
 
 impl PackMethod for State {
-    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
+    unsafe fn pack(&mut self, _offset: usize, _dst: *mut u8, _dst_size: usize) -> DatatypeResult<usize> {
         Ok(0)
     }
 
@@ -242,7 +225,7 @@ impl PackMethod for State {
 }
 
 impl UnpackMethod for State {
-    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+    unsafe fn unpack(&mut self, _offset: usize, _src: *const u8, _src_size: usize) -> DatatypeResult<()> {
         Ok(())
     }
 
@@ -354,13 +337,13 @@ impl ManualPack for StructVecArray {
         let mut pos = 0;
         let array_len = STRUCT_VEC_DATA_COUNT * std::mem::size_of::<i32>();
         for elem in &self.0 {
-            &data[pos..pos+4].copy_from_slice(&elem.a.to_be_bytes());
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.a.to_be_bytes());
             pos += 4;
-            &data[pos..pos+4].copy_from_slice(&elem.b.to_be_bytes());
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.b.to_be_bytes());
             pos += 4;
-            &data[pos..pos+4].copy_from_slice(&elem.c.to_be_bytes());
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.c.to_be_bytes());
             pos += 4;
-            &data[pos..pos+8].copy_from_slice(&elem.d.to_be_bytes());
+            let _ = &data[pos..pos+8].copy_from_slice(&elem.d.to_be_bytes());
             pos += 8;
             unsafe {
                 std::ptr::copy_nonoverlapping(
@@ -413,6 +396,7 @@ impl PackedSize for StructVecState {
 impl PackMethod for StructVecState {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
         // Assume we get a full non-fragmented buffer for now.
+        assert_eq!(offset, 0);
         let used = (*self.data).len() * STRUCT_VEC_PACKED_SIZE;
         assert_eq!(dst_size, used);
         let mut pos = 0;
@@ -445,6 +429,7 @@ impl PackMethod for StructVecState {
 impl UnpackMethod for StructVecState {
     unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
         // Assume we get a full non-fragmented buffer for now.
+        assert_eq!(offset, 0);
         let used = (*self.data).len() * STRUCT_VEC_PACKED_SIZE;
         let mut tmp = [0; 8];
         assert_eq!(src_size, used);
@@ -476,5 +461,183 @@ impl UnpackMethod for StructVecState {
                 })
                 .collect()
         )
+    }
+}
+
+/// Packed size for the simple struct.
+pub const STRUCT_SIMPLE_PACKED_SIZE: usize = 3 * std::mem::size_of::<i32>() + std::mem::size_of::<f64>();
+
+#[derive(Equivalence)]
+#[repr(C)]
+pub struct StructSimple {
+    a: i32,
+    b: i32,
+    c: i32,
+    d: f64,
+}
+
+impl StructSimple {
+    pub fn new() -> StructSimple {
+        StructSimple {
+            a: 34,
+            b: -2332,
+            c: 2293,
+            d: 1.9,
+        }
+    }
+}
+
+pub struct StructSimpleArray(pub Vec<StructSimple>);
+
+impl StructSimpleArray {
+    pub fn new(size: usize) -> StructSimpleArray {
+        assert_eq!(size % STRUCT_SIMPLE_PACKED_SIZE, 0);
+        assert!(size >= STRUCT_SIMPLE_PACKED_SIZE);
+        let count = size / STRUCT_SIMPLE_PACKED_SIZE;
+        StructSimpleArray((0..count).map(|_| StructSimple::new()).collect())
+    }
+
+    pub fn update(&mut self, size: usize) {
+        assert_eq!(size % STRUCT_SIMPLE_PACKED_SIZE, 0);
+        assert!(size >= STRUCT_SIMPLE_PACKED_SIZE);
+        let count = size / STRUCT_SIMPLE_PACKED_SIZE;
+        assert!(self.0.len() < count);
+        let new = count - self.0.len();
+        for _ in 0..new {
+            self.0.push(StructSimple::new());
+        }
+    }
+}
+
+impl MessageCount for StructSimpleArray {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl MessagePointer for StructSimpleArray {
+    fn ptr(&self) -> *const u8 {
+        self.0.as_ptr() as *const _
+    }
+
+    fn ptr_mut(&mut self) -> *mut u8 {
+        self.0.as_mut_ptr() as *mut _
+    }
+}
+
+impl MessageBuffer for StructSimpleArray {
+    unsafe fn pack(&self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        Some(Ok(Box::new(StructSimpleState {
+            data: (&self.0 as *const Vec<StructSimple>) as *mut _,
+        })))
+    }
+
+    unsafe fn unpack(&mut self) -> Option<DatatypeResult<Box<dyn UnpackMethod>>> {
+        Some(Ok(Box::new(StructSimpleState {
+            data: &mut self.0,
+        })))
+    }
+}
+
+impl ManualPack for StructSimpleArray {
+    fn packed_size(&self) -> usize {
+        self.0.len() * STRUCT_SIMPLE_PACKED_SIZE
+    }
+
+    fn manual_pack(&self) -> Vec<u8> {
+        let mut data = vec![0; self.0.len() * STRUCT_SIMPLE_PACKED_SIZE];
+        let mut pos = 0;
+        for elem in &self.0 {
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.a.to_be_bytes());
+            pos += 4;
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.b.to_be_bytes());
+            pos += 4;
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.c.to_be_bytes());
+            pos += 4;
+            let _ = &data[pos..pos+8].copy_from_slice(&elem.d.to_be_bytes());
+            pos += 8;
+        }
+        data
+    }
+
+    fn manual_unpack(&mut self, data: &[u8]) {
+        assert_eq!(data.len() % STRUCT_SIMPLE_PACKED_SIZE, 0);
+        assert_eq!(data.len() / STRUCT_SIMPLE_PACKED_SIZE, self.0.len());
+        let mut pos = 0;
+        for elem in &mut self.0 {
+            elem.a = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.b = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.c = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.d = f64::from_be_bytes(data[pos..pos+8].try_into().unwrap());
+            pos += 8;
+        }
+    }
+}
+
+pub struct StructSimpleState {
+    data: *mut Vec<StructSimple>,
+}
+
+impl PackedSize for StructSimpleState {
+    unsafe fn packed_size(&self) -> DatatypeResult<usize> {
+        Ok((*self.data).len() * STRUCT_SIMPLE_PACKED_SIZE)
+    }
+}
+
+impl PackMethod for StructSimpleState {
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
+        // Assume we get a full non-fragmented buffer for now.
+        assert_eq!(offset, 0);
+        let used = (*self.data).len() * STRUCT_SIMPLE_PACKED_SIZE;
+        assert_eq!(dst_size, used);
+        let mut pos = 0;
+        for elem in &(*self.data) {
+            std::ptr::copy_nonoverlapping(elem.a.to_be_bytes().as_ptr(), dst.offset(pos), 4);
+            pos += 4;
+            std::ptr::copy_nonoverlapping(elem.b.to_be_bytes().as_ptr(), dst.offset(pos), 4);
+            pos += 4;
+            std::ptr::copy_nonoverlapping(elem.c.to_be_bytes().as_ptr(), dst.offset(pos), 4);
+            pos += 4;
+            std::ptr::copy_nonoverlapping(elem.d.to_be_bytes().as_ptr(), dst.offset(pos), 8);
+            pos += 8;
+        }
+        Ok(used)
+    }
+
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
+        Ok(vec![])
+    }
+}
+
+impl UnpackMethod for StructSimpleState {
+    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+        // Assume we get a full non-fragmented buffer for now.
+        assert_eq!(offset, 0);
+        let used = (*self.data).len() * STRUCT_SIMPLE_PACKED_SIZE;
+        let mut tmp = [0; 8];
+        assert_eq!(src_size, used);
+        let mut pos = 0;
+        for elem in &mut (*self.data) {
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 4);
+            pos += 4;
+            elem.a = i32::from_be_bytes(tmp[..4].try_into().unwrap());
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 4);
+            pos += 4;
+            elem.b = i32::from_be_bytes(tmp[..4].try_into().unwrap());
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 4);
+            pos += 4;
+            elem.c = i32::from_be_bytes(tmp[..4].try_into().unwrap());
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 8);
+            pos += 8;
+            elem.d = f64::from_be_bytes(tmp[..8].try_into().unwrap());
+        }
+        Ok(())
+    }
+
+    unsafe fn memory_regions(&mut self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        Ok(vec![])
     }
 }

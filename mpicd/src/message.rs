@@ -1,11 +1,8 @@
 //! Request object.
-use std::ffi::c_void;
 use mpicd_ucx_sys::{
-    rust_ucs_ptr_is_err, rust_ucs_ptr_is_ptr, rust_ucs_ptr_status, rust_ucp_dt_make_contig,
-    rust_ucp_dt_make_iov, ucp_dt_iov_t, ucp_tag_recv_info_t, ucp_request_free, ucs_status_t,
-    ucp_worker_progress, UCS_OK, UCS_INPROGRESS,
+    rust_ucp_dt_make_contig, rust_ucp_dt_make_iov, ucp_dt_iov_t, ucp_worker_progress,
 };
-use crate::{status_to_string, Status, System};
+use crate::{Status, System};
 use crate::request::Request;
 use crate::datatype::{PackMethod, UnpackMethod};
 

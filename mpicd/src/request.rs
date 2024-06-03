@@ -4,7 +4,7 @@ use mpicd_ucx_sys::{
     rust_ucs_ptr_is_ptr, rust_ucs_ptr_is_err, rust_ucs_ptr_status,
     ucs_status_t, ucs_status_ptr_t, ucp_ep_h, ucp_worker_h, ucp_datatype_t, ucp_request_param_t,
     ucp_request_param_t__bindgen_ty_1, ucp_tag_send_nbx, ucp_tag_recv_nbx,
-    ucp_tag_recv_info_t, ucp_request_free, ucp_send_nbx_callback_t, UCP_OP_ATTR_FIELD_DATATYPE, UCP_OP_ATTR_FIELD_CALLBACK,
+    ucp_tag_recv_info_t, ucp_request_free, UCP_OP_ATTR_FIELD_DATATYPE, UCP_OP_ATTR_FIELD_CALLBACK,
     UCP_OP_ATTR_FIELD_USER_DATA, UCP_OP_ATTR_FLAG_NO_IMM_CMPL, UCS_OK, UCS_INPROGRESS,
 };
 use crate::{Status, status_to_string};
@@ -138,7 +138,7 @@ pub(crate) struct RequestData {
     complete: bool,
 
     /// Hold onto any datatypes created until completion of request.
-    datatype: ucp_datatype_t,
+    _datatype: ucp_datatype_t,
 }
 
 impl RequestData {
@@ -146,7 +146,7 @@ impl RequestData {
     pub fn new(datatype: ucp_datatype_t) -> RequestData {
         RequestData {
             complete: false,
-            datatype,
+            _datatype: datatype,
         }
     }
 }
