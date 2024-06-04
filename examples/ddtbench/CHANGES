@@ -1,0 +1,13 @@
+1.2
+* added one sided scheme
+* added possibility to use PAPI
+* added possibility to use high-resolution timer (with hrtimer)
+* added sample R analysis script
+* minor bug fixes
+
+1.1
+* added C support
+* minor bug fixes
+
+1.0
+* initial release with only Fortran support
