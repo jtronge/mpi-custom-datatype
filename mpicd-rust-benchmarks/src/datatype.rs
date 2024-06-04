@@ -395,12 +395,10 @@ impl PackedSize for StructVecState {
 
 impl PackMethod for StructVecState {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
-        // Assume we get a full non-fragmented buffer for now.
-        assert_eq!(offset, 0);
-        let used = (*self.data).len() * STRUCT_VEC_PACKED_SIZE;
-        assert_eq!(dst_size, used);
-        let mut pos = 0;
-        for elem in &(*self.data) {
+        let mut i = offset / STRUCT_VEC_PACKED_SIZE;
+        let mut pos: isize = 0;
+        while i < (*self.data).len() && (pos + STRUCT_VEC_PACKED_SIZE as isize) <= dst_size as isize {
+            let elem = &(*self.data)[i];
             std::ptr::copy_nonoverlapping(elem.a.to_be_bytes().as_ptr(), dst.offset(pos), 4);
             pos += 4;
             std::ptr::copy_nonoverlapping(elem.b.to_be_bytes().as_ptr(), dst.offset(pos), 4);
@@ -409,8 +407,9 @@ impl PackMethod for StructVecState {
             pos += 4;
             std::ptr::copy_nonoverlapping(elem.d.to_be_bytes().as_ptr(), dst.offset(pos), 8);
             pos += 8;
+            i += 1;
         }
-        Ok(used)
+        Ok(pos.try_into().expect("failed to convert pos from isize to usize"))
     }
 
     unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
@@ -589,12 +588,10 @@ impl PackedSize for StructSimpleState {
 
 impl PackMethod for StructSimpleState {
     unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
-        // Assume we get a full non-fragmented buffer for now.
-        assert_eq!(offset, 0);
-        let used = (*self.data).len() * STRUCT_SIMPLE_PACKED_SIZE;
-        assert_eq!(dst_size, used);
-        let mut pos = 0;
-        for elem in &(*self.data) {
+        let mut i = offset / STRUCT_SIMPLE_PACKED_SIZE;
+        let mut pos: isize = 0;
+        while i < (*self.data).len() && (pos + STRUCT_SIMPLE_PACKED_SIZE as isize) <= dst_size as isize {
+            let elem = &(*self.data)[i];
             std::ptr::copy_nonoverlapping(elem.a.to_be_bytes().as_ptr(), dst.offset(pos), 4);
             pos += 4;
             std::ptr::copy_nonoverlapping(elem.b.to_be_bytes().as_ptr(), dst.offset(pos), 4);
@@ -603,8 +600,9 @@ impl PackMethod for StructSimpleState {
             pos += 4;
             std::ptr::copy_nonoverlapping(elem.d.to_be_bytes().as_ptr(), dst.offset(pos), 8);
             pos += 8;
+            i += 1;
         }
-        Ok(used)
+        Ok(pos.try_into().expect("failed to convert pos from isize to usize"))
     }
 
     unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
