@@ -7,5 +7,5 @@ mkdir -p $RESULTS
     ./target/release/mpicd_latency --kind custom --datatype struct-vec --options-path ./benchmark-options/latency-struct-vec.yml --subvector-size 0
 ./scripts/run_rust_benchmarks.py -r $RESULTS -n packed \
     ./target/release/mpicd_latency --kind packed --datatype struct-vec --options-path ./benchmark-options/latency-struct-vec.yml --subvector-size 0
-./scripts/run_rust_benchmarks.py -r $RESULTS -n rsmpi \
+./scripts/run_rust_benchmarks.py -r $RESULTS -n rsmpi-struct-vec \
     ./target/release/rsmpi_latency --datatype struct-vec --options-path ./benchmark-options/latency-struct-vec.yml 
