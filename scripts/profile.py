@@ -11,7 +11,7 @@ import uuid
 
 def run_profile(args):
     """Run a profile for the program, yielding a list of profile files."""
-    profile_path = Path('~/.profiles').resolve()
+    profile_path = Path(os.path.expanduser('~/.profiles'))
     temp_dir = profile_path / uuid.uuid4().hex
     os.makedirs(temp_dir)
     print(f'profile dir: {temp_dir}')
