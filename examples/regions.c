@@ -30,7 +30,7 @@ int main(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     MPI_Type_create_custom(NULL, NULL, NULL, NULL, NULL,
-                           regions_count, regions, NULL, &cd);
+                           regions_count, regions, NULL, 0, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 

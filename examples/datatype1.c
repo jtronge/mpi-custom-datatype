@@ -36,7 +36,7 @@ int main(void)
 
     /* Create the type */
     MPI_Type_create_custom(&state_new, &state_free, &query, &pack,
-                           &unpack, NULL, NULL, NULL, &cd);
+                           &unpack, NULL, NULL, NULL, 0, &cd);
 
     buf = malloc(sizeof(*buf) * COUNT);
 

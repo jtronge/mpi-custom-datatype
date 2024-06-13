@@ -1,6 +1,5 @@
 #!/bin/sh
 
-export UCX_RNDV_THRESH=2M
 export RESULTS=results/latency_struct-vec
 mkdir -p $RESULTS
 ./scripts/run_rust_benchmarks.py -r $RESULTS -n custom \

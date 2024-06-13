@@ -1,5 +1,5 @@
 //! Datatype management code.
-use std::ffi::c_void;
+use std::ffi::{c_void, c_int};
 use crate::c;
 use mpicd::datatype::{DatatypeResult, DatatypeError, MessageBuffer, MessageCount, MessagePointer, PackMethod, UnpackMethod, PackedSize};
 use crate::{consts, with_context};
@@ -252,6 +252,7 @@ pub unsafe extern "C" fn MPI_Type_create_custom(
     region_countfn: c::RegionCountFn,
     regionfn: c::RegionFn,
     context: *mut c_void,
+    _inorder: c_int,
     datatype: *mut c::Datatype,
 ) -> c::ReturnStatus {
     with_context(move |_, cctx| {

@@ -130,6 +130,7 @@ int MPI_Type_create_custom(MPI_Type_custom_state_function *statefn,
                            MPI_Type_custom_region_count_function *region_countfn,
                            MPI_Type_custom_region_function *regionfn,
                            void *context, // Context pointer to be stored for initializing state
+                           int inorder, // Flag indicating in-order pack requirement
                            MPI_Datatype *type);
 
 /* Idea: use a builder-like interface */
