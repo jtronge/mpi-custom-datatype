@@ -33,15 +33,7 @@ def run_profile(args):
         print(f'mpirun -np 2 -N 1 /bin/sh {cmd_script}', file=sbatch_fp)
 
     # Now wait for the job to complete
-    try:
-        subprocess.run(['sbatch', '-W', sbatch_script])
-    except subprocess.CalledProcessError as err:
-        time.sleep(2)
-        with open(cmd_script) as cmd_fp:
-            print(cmd_fp.read())
-        with open(sbatch_script) as sbatch_fp:
-            print(sbatch_fp.read())
-        raise err
+    subprocess.run(['sbatch', '-W', sbatch_script], check=True)
 
     # Find all the perf outputs
     for fname in os.listdir(temp_dir):
