@@ -53,12 +53,14 @@ FMTS = {
     'packed': ':g',
     'rsmpi': '-^b',
     'rsmpi-struct-vec': '-.b',
+    'rsmpi-struct-simple': '-b',
 }
 LABELS = {
     'custom': 'custom',
     'packed': 'manual-pack',
     'rsmpi': 'rsmpi-bytes-baseline',
     'rsmpi-struct-vec': 'rsmpi-derived-datatype',
+    'rsmpi-struct-simple': 'rsmpi-derived-datatype',
 }
 
 def basic(args):
