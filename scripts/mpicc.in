@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""mpicd cc wrapper script."""
+import sys
+import subprocess
+import sys
+from pathlib import Path
+
+
+def get_ldflags(libs):
+    """Return ldflags for the list of libraries."""
+    libs = [Path(lib) for lib in libs]
+    paths = set(lib.parent for lib in libs)
+    rpath_flags = ','.join(f'-rpath,{path}' for path in paths)
+    libnames = [lib.name.removeprefix('lib').removesuffix('.so') for lib in libs]
+    ldflags = [str(lib) for lib in libs]
+    ldflags.append(f'-Wl,{rpath_flags}')
+    return ldflags
+
+
+if __name__ == '__main__':
+    compiler = '@CMAKE_C_COMPILER@'.split()
+    prefix = '@CMAKE_INSTALL_PREFIX@'
+    ucx_libs = '@UCX_LINK_LIBRARIES@'.split(';')
+    pmix_libs = '@PMIX_LINK_LIBRARIES@'.split(';')
+    libs = ucx_libs[:]
+    libs.extend(pmix_libs)
+    libs.append(f'{prefix}/lib/libmpicd_capi.a')
+    ldflags = get_ldflags(libs)
+    mpicc_args = sys.argv[1:]
+
+    real_args = compiler[:]
+    real_args.extend(mpicc_args)
+    real_args.extend(ldflags)
+
+    cp = subprocess.run(real_args)
+    sys.exit(cp.returncode)
