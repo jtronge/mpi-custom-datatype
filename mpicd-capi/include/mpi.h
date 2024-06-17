@@ -1,6 +1,8 @@
 #ifndef _MPI_H_
 #define _MPI_H_
 
+#include <stdint.h>
+
 #if __cplusplus
 extern "C" {
 #endif

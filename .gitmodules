@@ -4,3 +4,6 @@
 [submodule "deps/openpmix"]
 	path = deps/openpmix
 	url = git@github.com:openpmix/openpmix.git
+[submodule "mpi4py"]
+	path = mpi4py
+	url = git@github.com:jtronge/mpi4py.git
