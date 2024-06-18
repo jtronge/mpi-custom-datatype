@@ -7,6 +7,4 @@ add_executable(osu_bw osu_bw.c)
 
 foreach(BIN hello_world datatype0 datatype1 ring regions osu_bw)
     target_link_libraries(${BIN} PUBLIC mpicd-capi)
-    target_link_libraries(${BIN} PUBLIC ${UCX_LINK_LIBRARIES})
-    target_link_libraries(${BIN} PUBLIC ${PMIX_LINK_LIBRARIES})
 endforeach()

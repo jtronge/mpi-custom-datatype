@@ -29,7 +29,7 @@ if __name__ == '__main__':
     real_args = compiler[:]
     real_args.extend(mpicc_args)
     real_args.append(f'-Wl,-rpath,{prefix}/lib')
-    real_args.append(f'{prefix}/lib/libmpicd.so')
+    real_args.append(f'{prefix}/lib/libmpi.so')
     real_args.append(f'-I{prefix}/include')
     real_args.extend(pmix_libs)
     real_args.extend(pmix_cflags)
