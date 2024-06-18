@@ -35,7 +35,7 @@ where
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Init(_argc: *mut c_int, _argv: *mut *mut *mut c_char) -> c::ReturnStatus {
     // Initialize logging.
-    env_logger::init();
+    // env_logger::init();
 
     info!("MPI_Init()");
     CONTEXT_START.call_once(|| {
