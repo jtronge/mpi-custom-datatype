@@ -7,12 +7,12 @@ fn main() {
         .probe("pmix")
         .expect("failed to find pmix library");
 
-    // Add proper link paths and names.
+    // Add proper link paths (including rpath) and names.
     for link_path in &pmix.link_paths {
-        println!("cargo:rustc-link-search=native={}", link_path.display());
+        println!("cargo::rustc-link-search=native={}", link_path.display());
     }
     for link_file in &pmix.link_files {
-        println!("cargo:rustc-link-lib={}", link_file.display());
+        println!("cargo::rustc-link-lib={}", link_file.display());
     }
 
     // Generate the bindings.
@@ -25,12 +25,6 @@ fn main() {
         .clang_args(clang_args.iter())
         .header("src/pmix.h")
         .allowlist_item("[Pp][Mm][Ii][Xx]_.+")
-        // .allowlist_function("PMIx_Init")
-        // .allowlist_function("PMIx_Initialized")
-        // .allowlist_function("PMIx_Finalize")
-        // .allowlist_function("PMIx_Put")
-        // .allowlist_function("PMIx_Get")
-        // .allowlist_function("PMIx_Error_string")
         .derive_default(true)
         .generate()
         .expect("failed to generate bindings");
