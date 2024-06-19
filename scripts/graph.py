@@ -49,11 +49,11 @@ def choose_x_label(size):
 
 
 FMTS = {
-    'custom': '-r',
-    'packed': ':g',
-    'rsmpi': '-^b',
-    'rsmpi-struct-vec': '-.b',
-    'rsmpi-struct-simple': '-b',
+    'custom': 's-r',
+    'packed': '>:g',
+    'rsmpi': 'H-.b',
+    'rsmpi-struct-vec': 'H-.b',
+    'rsmpi-struct-simple': 'H-.b',
 }
 LABELS = {
     'custom': 'custom',
@@ -63,23 +63,18 @@ LABELS = {
     'rsmpi-struct-simple': 'rsmpi-derived-datatype',
 }
 
-def basic(args):
+def basic_graph(results_path, names, title, benchmark, y_bounds=None):
     fig, ax = plt.subplots()
-    # ax.axis('tight')
 
     all_values = []
-    names = args.names.split(',')
     for name in names:
-        sizes, values, err = load_average_results(args.results_path, name)
+        sizes, values, err = load_average_results(results_path, name)
         all_values.append(values)
         ax.errorbar(x=sizes, y=values, yerr=err, fmt=FMTS[name], label=LABELS[name])
 
-    # Determine bounds
-    # ax.set_ybound(lower=args.lower, upper=args.upper)
-
-    ax.set_title(args.title)
+    ax.set_title(title)
     ax.set_xlabel('size (bytes)')
-    if args.benchmark == 'bw':
+    if benchmark == 'bw':
         ax.set_ylabel('bandwidth (MB/s)')
     else:
         ax.set_ylabel('latency (µs)')
@@ -87,29 +82,38 @@ def basic(args):
     ax.legend()
     ax.set_yscale('log')
     ax.set_xscale('log', base=2)
+    # Determine bounds
+    if y_bounds is not None:
+        ax.set_ybound(lower=y_bounds[0], upper=y_bounds[1])
     plt.show()
 
 
+def bw_double_vec(_args):
+    """Graph bandwidth for the double-vec type."""
+    basic_graph('results/bw_double-vec_1024s', ['custom', 'packed', 'rsmpi'],
+                'Bandwidth double-vec (subvector 1024 bytes)', 'bw')
+
+
 LATENCY_SIZE_COMPARE_RESULTS = [
-    ('64 bytes', 'results/latency-64s', 'custom', '.-r'),
-    ('128 bytes', 'results/latency-128s', 'custom', 's-.r'),
-    ('512 bytes', 'results/latency-512s', 'custom', 'P--r'),
-    ('1024 bytes', 'results/latency-1024s', 'custom', '*:r'),
-    ('2048 bytes', 'results/latency-2048s', 'custom', 'D-.r'),
-    ('rsmpi-bytes-baseline', 'results/latency-2048s', 'rsmpi', '-^b'),
-    ('manual-pack', 'results/latency-2048s', 'packed', ':g'),
+    ('custom-64b', 'results/latency_double-vec/custom-64', '.-r'),
+    ('custom-256b', 'results/latency_double-vec/custom-256', 's-r'),
+    ('custom-1k', 'results/latency_double-vec/custom-1024', 'P-r'),
+    ('custom-4k', 'results/latency_double-vec/custom-4096', '*-r'),
+    ('manual-pack-64b', 'results/latency_double-vec/packed-64', '>:g'),
+    ('manual-pack-256b', 'results/latency_double-vec/packed-256', '<:g'),
+    ('manual-pack-1k', 'results/latency_double-vec/packed-1024', '+:g'),
+    ('manual-pack-4k', 'results/latency_double-vec/packed-4096', '3:g'),
+    ('rsmpi-bytes-baseline', 'results/latency_double-vec/rsmpi-bytes', 'H-.b'),
 ]
 
-def latency_size_compare(args):
+def latency_double_vec(_args):
     fig, ax = plt.subplots()
     ax.set_xscale('log', base=2)
     ax.set_yscale('log')
-    for label, path, name, fmt in LATENCY_SIZE_COMPARE_RESULTS:
-        sizes, values, err = load_average_results(path, name)
-        print(err)
-        # sizes = [choose_x_label(size) for size in sizes]
+    for label, path, fmt in LATENCY_SIZE_COMPARE_RESULTS:
+        sizes, values, err = load_average_results(path, 'result')
         ax.errorbar(x=sizes, y=values, yerr=err, fmt=fmt, label=label)
-    ax.set_title(args.title)
+    ax.set_title('Latency Varying Subvector Sizes')
     ax.set_xlabel('size (bytes)')
     ax.set_ylabel('latency (µs)')
     ax.set_ybound(lower=1)
@@ -118,23 +122,40 @@ def latency_size_compare(args):
     plt.show()
 
 
+def bw_struct_vec(_args):
+    """Graph banwdith for the struct-vec type."""
+    basic_graph('results/bw_struct-vec', ['custom', 'packed', 'rsmpi-struct-vec'],
+                'Bandwidth (struct-vec)', 'bw', y_bounds=(10, 10**4))
+
+
+def latency_struct_vec(_args):
+    """Graph latency for the struct-vec type."""
+    basic_graph('results/latency_struct-vec', ['custom', 'packed', 'rsmpi-struct-vec'],
+                'Latency (struct-vec)', 'latency')
+
+
+def bw_struct_simple(_args):
+    """Graph banwdith for the struct-simple type."""
+    basic_graph('results/bw_struct-simple', ['custom', 'packed', 'rsmpi-struct-simple'],
+                'Bandwidth (struct-simple)', 'bw')
+
+
+def latency_struct_simple(_args):
+    """Graph latency for the struct-simple type."""
+    basic_graph('results/latency_struct-simple', ['custom', 'packed', 'rsmpi-struct-simple'],
+                'Latency (struct-simple)', 'latency')
+
+
 if __name__ == '__main__':
     plt.style.use('paper.mplstyle')
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
-
-    parser_basic = subparsers.add_parser('basic')
-    parser_basic.add_argument('-r', '--results-path', required=True, help='result path')
-    parser_basic.add_argument('-t', '--title', required=True, help='graph title')
-    parser_basic.add_argument('-b', '--benchmark', required=True, choices=('bw', 'latency'), help='benchmark type')
-    parser_basic.add_argument('-n', '--names', required=True, help='comma-separated list of benchmarks type names to plot')
-    parser_basic.set_defaults(handler=basic)
-
-    parser_latency_size_compare = subparsers.add_parser('latency-size-compare',
-                                                        help='display graph for latency subvec size comparison tests')
-    parser_latency_size_compare.add_argument('-t', '--title', required=True, help='graph title')
-    parser_latency_size_compare.set_defaults(handler=latency_size_compare)
-
+    subparsers.add_parser('bw-double-vec').set_defaults(handler=bw_double_vec)
+    subparsers.add_parser('latency-double-vec').set_defaults(handler=latency_double_vec)
+    subparsers.add_parser('bw-struct-vec').set_defaults(handler=bw_struct_vec)
+    subparsers.add_parser('latency-struct-vec').set_defaults(handler=latency_struct_vec)
+    subparsers.add_parser('bw-struct-simple').set_defaults(handler=bw_struct_simple)
+    subparsers.add_parser('latency-struct-simple').set_defaults(handler=latency_struct_simple)
     args = parser.parse_args()
     args.handler(args)
