@@ -4,6 +4,7 @@ use mpicd::datatype::MessageBuffer;
 use mpicd_rust_benchmarks::{
     BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, ComplexVec, LatencyBenchmark,
     LatencyBenchmarkBuffer, LatencyOptions, ManualPack, StructVecArray, StructSimpleArray,
+    StructSimpleNoGapArray,
 };
 
 struct Benchmark<C: Communicator> {
@@ -80,6 +81,9 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
             LatencyBenchmarkBuffer::StructSimple(ref mut buffers) => {
                 let _ = buffers.insert((StructSimpleArray::new(size), StructSimpleArray::new(size)));
             }
+            LatencyBenchmarkBuffer::StructSimpleNoGap(ref mut buffers) => {
+                let _ = buffers.insert((StructSimpleNoGapArray::new(size), StructSimpleNoGapArray::new(size)));
+            }
         }
     }
 
@@ -94,6 +98,10 @@ impl<C: Communicator> LatencyBenchmark for Benchmark<C> {
                 latency(self.kind, &self.ctx, self.rank, sbuf, rbuf);
             }
             LatencyBenchmarkBuffer::StructSimple(ref mut buffers) => {
+                let (sbuf, rbuf) = buffers.as_mut().expect("missing buffers");
+                latency(self.kind, &self.ctx, self.rank, sbuf, rbuf);
+            }
+            LatencyBenchmarkBuffer::StructSimpleNoGap(ref mut buffers) => {
                 let (sbuf, rbuf) = buffers.as_mut().expect("missing buffers");
                 latency(self.kind, &self.ctx, self.rank, sbuf, rbuf);
             }
@@ -114,6 +122,7 @@ fn main() {
         BenchmarkDatatype::DoubleVec => LatencyBenchmarkBuffer::DoubleVec(None),
         BenchmarkDatatype::StructVec => LatencyBenchmarkBuffer::StructVec(None),
         BenchmarkDatatype::StructSimple => LatencyBenchmarkBuffer::StructSimple(None),
+        BenchmarkDatatype::StructSimpleNoGap => LatencyBenchmarkBuffer::StructSimpleNoGap(None),
     };
     let benchmark = Benchmark {
         kind: args.kind,

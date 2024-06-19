@@ -1,0 +1,28 @@
+--------------------------------------------------------------------------
+WARNING: A deprecated command line option was used.
+
+  Deprecated option:   N
+  Corrected option:    --map-by ppr:1:node
+
+We have updated this for you and will proceed. However, this will be treated
+as an error in a future release. Please update your command line.
+--------------------------------------------------------------------------
+
+# size latency
+16 1.527604
+32 1.687591
+64 1.8343116
+128 1.9443755
+256 2.3587048
+512 2.54178
+1024 2.766988
+2048 3.55533
+4096 4.494603
+8192 5.5480123
+16384 8.035625
+32768 12.786266
+65536 20.26994
+131072 32.74898
+262144 59.87869
+524288 110.32183
+1048576 215.65416

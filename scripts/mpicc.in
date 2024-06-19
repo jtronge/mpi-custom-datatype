@@ -19,11 +19,6 @@ if __name__ == '__main__':
         compiler = '@CMAKE_C_COMPILER@'.split()
     prefix = '@CMAKE_INSTALL_PREFIX@'
 
-    pmix_libs = run_w_stdout('pkg-config --libs pmix').split()
-    pmix_cflags = run_w_stdout('pkg-config --cflags pmix').split()
-    ucx_libs = run_w_stdout('pkg-config --libs ucx').split()
-    ucx_cflags = run_w_stdout('pkg-config --cflags ucx').split()
-
     mpicc_args = sys.argv[1:]
 
     real_args = compiler[:]
@@ -31,11 +26,11 @@ if __name__ == '__main__':
     real_args.append(f'-Wl,-rpath,{prefix}/lib')
     real_args.append(f'{prefix}/lib/libmpi.so')
     real_args.append(f'-I{prefix}/include')
-    real_args.extend(pmix_libs)
-    real_args.extend(pmix_cflags)
-    real_args.extend(ucx_libs)
-    real_args.extend(ucx_cflags)
-    real_args.extend(['-lm', '-ldl', '-lc'])
+    # real_args.extend(pmix_libs)
+    # real_args.extend(pmix_cflags)
+    # real_args.extend(ucx_libs)
+    # real_args.extend(ucx_cflags)
+    # real_args.extend(['-lm', '-ldl', '-lc'])
 
     cp = subprocess.run(real_args)
     sys.exit(cp.returncode)

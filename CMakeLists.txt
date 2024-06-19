@@ -26,9 +26,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmpicd_capi.so
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink \
               ${CMAKE_INSTALL_PREFIX}/lib/libmpicd_capi.so \
               ${CMAKE_INSTALL_PREFIX}/lib/libmpi.so)")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmpicd_capi.a
-        RENAME libmpi.a
-        DESTINATION lib)
 # Should this be installed with a header-specific rule?
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/mpicd-capi/include/mpi.h
         DESTINATION include)

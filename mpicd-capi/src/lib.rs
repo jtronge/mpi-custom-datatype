@@ -35,7 +35,9 @@ where
 #[no_mangle]
 pub unsafe extern "C" fn MPI_Init(_argc: *mut c_int, _argv: *mut *mut *mut c_char) -> c::ReturnStatus {
     // Initialize logging.
-    // env_logger::init();
+    env_logger::init();
+
+    println!("INIT!!!!!!");
 
     info!("MPI_Init()");
     CONTEXT_START.call_once(|| {
@@ -57,6 +59,8 @@ pub unsafe extern "C" fn MPI_Finalize() -> c::ReturnStatus {
 pub unsafe extern "C" fn MPI_Comm_size(comm: c::Comm, size: *mut c_int) -> c::ReturnStatus {
     info!("MPI_Comm_size()");
 
+    println!("MPI_Comm_size()!!!!!!!!!!!");
+
     // Assume MPI_COMM_WORLD.
     assert_eq!(comm, consts::COMM_WORLD);
 
@@ -64,6 +68,7 @@ pub unsafe extern "C" fn MPI_Comm_size(comm: c::Comm, size: *mut c_int) -> c::Re
         *size = ctx.size();
         consts::SUCCESS
     } else {
+        println!("NO CONTEXT!!!!!!!");
         consts::ERR_INTERNAL
     }
 }

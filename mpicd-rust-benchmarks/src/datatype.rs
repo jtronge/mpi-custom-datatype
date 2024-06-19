@@ -12,6 +12,9 @@ pub enum BenchmarkDatatypeBuffer {
 
     /// StructSimple type.
     StructSimple(Option<Vec<StructSimpleArray>>),
+
+    /// StructSimpleNoGap type.
+    StructSimpleNoGap(Option<Vec<StructSimpleNoGapArray>>),
 }
 
 /// Datatype buffer for rsmpi benchmarks.
@@ -24,6 +27,9 @@ pub enum RsmpiDatatypeBuffer {
 
     /// StructSimple type.
     StructSimple(Option<Vec<Vec<StructSimple>>>),
+
+    /// StructSimpleNoGap type.
+    StructSimpleNoGap(Option<Vec<Vec<StructSimpleNoGap>>>),
 }
 
 /// Latency benchmark buffer holder.
@@ -36,6 +42,9 @@ pub enum LatencyBenchmarkBuffer {
 
     /// StructSimple type.
     StructSimple(Option<(StructSimpleArray, StructSimpleArray)>),
+
+    /// StructSimpleNoGap type.
+    StructSimpleNoGap(Option<(StructSimpleNoGapArray, StructSimpleNoGapArray)>),
 }
 
 /// Latency benchmark buffer holder.
@@ -46,8 +55,11 @@ pub enum RsmpiLatencyBenchmarkBuffer {
     /// StructVec type.
     StructVec(Option<(Vec<StructVec>, Vec<StructVec>)>),
 
-    /// StructVec type.
+    /// StructSimple type.
     StructSimple(Option<(Vec<StructSimple>, Vec<StructSimple>)>),
+
+    /// StructSimple type.
+    StructSimpleNoGap(Option<(Vec<StructSimpleNoGap>, Vec<StructSimpleNoGap>)>),
 }
 
 /// Trait for implementing manual unpack.
@@ -631,6 +643,172 @@ impl UnpackMethod for StructSimpleState {
             std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 8);
             pos += 8;
             elem.d = f64::from_be_bytes(tmp[..8].try_into().unwrap());
+        }
+        Ok(())
+    }
+
+    unsafe fn memory_regions(&mut self) -> DatatypeResult<Vec<(*mut u8, usize)>> {
+        Ok(vec![])
+    }
+}
+
+/// Packed size for the simple struct without gap.
+pub const STRUCT_SIMPLE_NO_GAP_PACKED_SIZE: usize = 2 * std::mem::size_of::<i32>() + std::mem::size_of::<f64>();
+
+#[derive(Equivalence)]
+#[repr(C)]
+pub struct StructSimpleNoGap {
+    a: i32,
+    b: i32,
+    c: f64,
+}
+
+impl StructSimpleNoGap {
+    pub fn new() -> StructSimpleNoGap {
+        StructSimpleNoGap {
+            a: 34,
+            b: -2332,
+            c: 1.9,
+        }
+    }
+}
+
+pub struct StructSimpleNoGapArray(pub Vec<StructSimpleNoGap>);
+
+impl StructSimpleNoGapArray {
+    pub fn new(size: usize) -> StructSimpleNoGapArray {
+        assert_eq!(size % STRUCT_SIMPLE_NO_GAP_PACKED_SIZE, 0);
+        assert!(size >= STRUCT_SIMPLE_NO_GAP_PACKED_SIZE);
+        let count = size / STRUCT_SIMPLE_NO_GAP_PACKED_SIZE;
+        StructSimpleNoGapArray((0..count).map(|_| StructSimpleNoGap::new()).collect())
+    }
+
+    pub fn update(&mut self, size: usize) {
+        assert_eq!(size % STRUCT_SIMPLE_NO_GAP_PACKED_SIZE, 0);
+        assert!(size >= STRUCT_SIMPLE_NO_GAP_PACKED_SIZE);
+        let count = size / STRUCT_SIMPLE_NO_GAP_PACKED_SIZE;
+        assert!(self.0.len() < count);
+        let new = count - self.0.len();
+        for _ in 0..new {
+            self.0.push(StructSimpleNoGap::new());
+        }
+    }
+}
+
+impl MessageCount for StructSimpleNoGapArray {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl MessagePointer for StructSimpleNoGapArray {
+    fn ptr(&self) -> *const u8 {
+        self.0.as_ptr() as *const _
+    }
+
+    fn ptr_mut(&mut self) -> *mut u8 {
+        self.0.as_mut_ptr() as *mut _
+    }
+}
+
+impl MessageBuffer for StructSimpleNoGapArray {
+    unsafe fn pack(&self) -> Option<DatatypeResult<Box<dyn PackMethod>>> {
+        Some(Ok(Box::new(StructSimpleNoGapState {
+            data: (&self.0 as *const Vec<StructSimpleNoGap>) as *mut _,
+        })))
+    }
+
+    unsafe fn unpack(&mut self) -> Option<DatatypeResult<Box<dyn UnpackMethod>>> {
+        Some(Ok(Box::new(StructSimpleNoGapState {
+            data: &mut self.0,
+        })))
+    }
+}
+
+impl ManualPack for StructSimpleNoGapArray {
+    fn packed_size(&self) -> usize {
+        self.0.len() * STRUCT_SIMPLE_NO_GAP_PACKED_SIZE
+    }
+
+    fn manual_pack(&self) -> Vec<u8> {
+        let mut data = vec![0; self.0.len() * STRUCT_SIMPLE_NO_GAP_PACKED_SIZE];
+        let mut pos = 0;
+        for elem in &self.0 {
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.a.to_be_bytes());
+            pos += 4;
+            let _ = &data[pos..pos+4].copy_from_slice(&elem.b.to_be_bytes());
+            pos += 4;
+            let _ = &data[pos..pos+8].copy_from_slice(&elem.c.to_be_bytes());
+            pos += 8;
+        }
+        data
+    }
+
+    fn manual_unpack(&mut self, data: &[u8]) {
+        assert_eq!(data.len() % STRUCT_SIMPLE_NO_GAP_PACKED_SIZE, 0);
+        assert_eq!(data.len() / STRUCT_SIMPLE_NO_GAP_PACKED_SIZE, self.0.len());
+        let mut pos = 0;
+        for elem in &mut self.0 {
+            elem.a = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.b = i32::from_be_bytes(data[pos..pos+4].try_into().unwrap());
+            pos += 4;
+            elem.c = f64::from_be_bytes(data[pos..pos+8].try_into().unwrap());
+            pos += 8;
+        }
+    }
+}
+
+pub struct StructSimpleNoGapState {
+    data: *mut Vec<StructSimpleNoGap>,
+}
+
+impl PackedSize for StructSimpleNoGapState {
+    unsafe fn packed_size(&self) -> DatatypeResult<usize> {
+        Ok((*self.data).len() * STRUCT_SIMPLE_NO_GAP_PACKED_SIZE)
+    }
+}
+
+impl PackMethod for StructSimpleNoGapState {
+    unsafe fn pack(&mut self, offset: usize, dst: *mut u8, dst_size: usize) -> DatatypeResult<usize> {
+        let mut i = offset / STRUCT_SIMPLE_NO_GAP_PACKED_SIZE;
+        let mut pos: isize = 0;
+        while i < (*self.data).len() && (pos + STRUCT_SIMPLE_NO_GAP_PACKED_SIZE as isize) <= dst_size as isize {
+            let elem = &(*self.data)[i];
+            std::ptr::copy_nonoverlapping(elem.a.to_be_bytes().as_ptr(), dst.offset(pos), 4);
+            pos += 4;
+            std::ptr::copy_nonoverlapping(elem.b.to_be_bytes().as_ptr(), dst.offset(pos), 4);
+            pos += 4;
+            std::ptr::copy_nonoverlapping(elem.c.to_be_bytes().as_ptr(), dst.offset(pos), 8);
+            pos += 8;
+            i += 1;
+        }
+        Ok(pos.try_into().expect("failed to convert pos from isize to usize"))
+    }
+
+    unsafe fn memory_regions(&self) -> DatatypeResult<Vec<(*const u8, usize)>> {
+        Ok(vec![])
+    }
+}
+
+impl UnpackMethod for StructSimpleNoGapState {
+    unsafe fn unpack(&mut self, offset: usize, src: *const u8, src_size: usize) -> DatatypeResult<()> {
+        // Assume we get a full non-fragmented buffer for now.
+        assert_eq!(offset, 0);
+        let used = (*self.data).len() * STRUCT_SIMPLE_NO_GAP_PACKED_SIZE;
+        let mut tmp = [0; 8];
+        assert_eq!(src_size, used);
+        let mut pos = 0;
+        for elem in &mut (*self.data) {
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 4);
+            pos += 4;
+            elem.a = i32::from_be_bytes(tmp[..4].try_into().unwrap());
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 4);
+            pos += 4;
+            elem.b = i32::from_be_bytes(tmp[..4].try_into().unwrap());
+            std::ptr::copy_nonoverlapping(src.offset(pos), tmp.as_mut_ptr(), 8);
+            pos += 8;
+            elem.c = f64::from_be_bytes(tmp[..8].try_into().unwrap());
         }
         Ok(())
     }
