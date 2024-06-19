@@ -33,7 +33,6 @@ impl CustomBuffer {
     }
 }
 
-
 impl MessagePointer for CustomBuffer {
     fn ptr(&self) -> *const u8 {
         self.ptr as *const _
