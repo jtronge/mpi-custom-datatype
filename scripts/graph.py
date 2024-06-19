@@ -54,6 +54,7 @@ FMTS = {
     'rsmpi': 'H-.b',
     'rsmpi-struct-vec': 'H-.b',
     'rsmpi-struct-simple': 'H-.b',
+    'rsmpi-struct-simple-no-gap': 'H-.b',
 }
 LABELS = {
     'custom': 'custom',
@@ -61,6 +62,7 @@ LABELS = {
     'rsmpi': 'rsmpi-bytes-baseline',
     'rsmpi-struct-vec': 'rsmpi-derived-datatype',
     'rsmpi-struct-simple': 'rsmpi-derived-datatype',
+    'rsmpi-struct-simple-no-gap': 'rsmpi-derived-datatype',
 }
 
 def basic_graph(results_path, names, title, benchmark, y_bounds=None):
@@ -146,6 +148,13 @@ def latency_struct_simple(_args):
                 'Latency (struct-simple)', 'latency')
 
 
+def latency_struct_simple_no_gap(_args):
+    """Graph latency for the struct-simple-no-gap type."""
+    basic_graph('results/latency_struct-simple-no-gap',
+                ['custom', 'packed', 'rsmpi-struct-simple-no-gap'],
+                'Latency (struct-simple-no-gap)', 'latency')
+
+
 if __name__ == '__main__':
     plt.style.use('paper.mplstyle')
 
@@ -157,5 +166,6 @@ if __name__ == '__main__':
     subparsers.add_parser('latency-struct-vec').set_defaults(handler=latency_struct_vec)
     subparsers.add_parser('bw-struct-simple').set_defaults(handler=bw_struct_simple)
     subparsers.add_parser('latency-struct-simple').set_defaults(handler=latency_struct_simple)
+    subparsers.add_parser('latency-struct-simple-no-gap').set_defaults(handler=latency_struct_simple_no_gap)
     args = parser.parse_args()
     args.handler(args)
