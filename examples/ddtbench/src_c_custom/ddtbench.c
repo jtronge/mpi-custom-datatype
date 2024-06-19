@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "mpi.h"
 #include "ddtbench.h"
 
 int main( int argc, char **argv, char *envp[]) {
@@ -124,7 +123,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 3x3 ym send, em_b_wave case
     ims = 8;
@@ -146,7 +145,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 4x4 ym send, em_b_wave case
     ims = 4;
@@ -168,7 +167,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 5x5 ym send, em_b_wave case
     ims = 10;
@@ -190,7 +189,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 8x8 ym send, em_b_wave case
     ims = 4;
@@ -212,7 +211,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! ====================================================================
 //! ========================== WRF x direction =========================
@@ -241,7 +240,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 4x4 xp send, em_b_wave
     ims = 4;
@@ -263,7 +262,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 8x8 xp send, em_b_wave
     ims = 4;
@@ -285,7 +284,7 @@ int main( int argc, char **argv, char *envp[]) {
     param_first_scalar = 2;
 
     wrapper_timing_wrf( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop,
-      inner_loop, &testname[0][0], local_comm_pp );
+      inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     free( limit_4D_arrays );
 
@@ -296,33 +295,35 @@ int main( int argc, char **argv, char *envp[]) {
 //! ==================== MILC su3 zdown direction ======================
 //! ====================================================================
 
+#if 0
+
     DIM1 = 16;
     DIM2 = 16;
     DIM3 = 16;
     DIM4 = 16;
 
-    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM1 = 8;
     DIM2 = 16;
     DIM3 = 16;
     DIM4 = 16;
 
-    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM1 = 8;
     DIM2 = 8;
     DIM3 = 8;
     DIM4 = 16;
 
-    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM1 = 8;
     DIM2 = 8;
     DIM3 = 8;
     DIM4 = 8;
 
-    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! ====================================================================
 //! =============================== NAS_LU =============================
@@ -331,37 +332,37 @@ int main( int argc, char **argv, char *envp[]) {
     DIM2 = 12;
     DIM3 = 12;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM2 = 33;
     DIM3 = 33;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM2 = 64;
     DIM3 = 64;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM2 = 102;
     DIM3 = 102;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM2 = 162;
     DIM3 = 162;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM2 = 408;
     DIM3 = 408;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM2 = 1020;
     DIM3 = 1020;
 
-    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_lu( DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! ====================================================================
 //! =============================== NAS_MG =============================
@@ -371,25 +372,27 @@ int main( int argc, char **argv, char *envp[]) {
     DIM2 = 18;
     DIM3 = 18;
 
-    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM1 = 130;
     DIM2 = 66;
     DIM3 = 66;
 
-    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM1 = 258;
     DIM2 = 130;
     DIM3 = 130;
 
-    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
     DIM1 = 514;
     DIM2 = 258;
     DIM3 = 258;
 
-    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
+
+#endif // 0
 
 //! ====================================================================
 //! ============================ LAMMPS_full ===========================
@@ -399,19 +402,19 @@ int main( int argc, char **argv, char *envp[]) {
     icount1 = 3062;
     DIM1 = 3534;
 
-    wrapper_timing_lammps_full( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_lammps_full( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! peptide example with 4 process (maximum)
     icount1 = 2243;
     DIM1 = 2597;
 
-    wrapper_timing_lammps_full( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_lammps_full( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! peptide example with 8 process (maximum)
     icount1 = 1662;
     DIM1 = 1907;
 
-    wrapper_timing_lammps_full( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_lammps_full( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 #if 0
 //! ====================================================================
@@ -422,19 +425,19 @@ int main( int argc, char **argv, char *envp[]) {
     icount1 = 243;
     DIM1 = 4084;
 
-    wrapper_timing_lammps_atomic( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_lammps_atomic( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! crack example with 4 process (maximum)
     icount1 = 145;
     DIM1 = 2157;
 
-    wrapper_timing_lammps_atomic( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_lammps_atomic( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! crack example with 8 process (maximum)
     icount1 = 114;
     DIM1 = 1217;
 
-    wrapper_timing_lammps_atomic( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_lammps_atomic( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! ====================================================================
 //! ============================ SPECFEM3D_oc ==========================
@@ -444,25 +447,25 @@ int main( int argc, char **argv, char *envp[]) {
     icount1 = 3225;
     DIM1 = 88881;
 
-    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=3
     icount1 = 1897;
     DIM1 = 38585;
 
-    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=2
     icount1 = 877;
     DIM1 = 12857;
 
-    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=1
     icount1 = 493;
     DIM1 = 3697;
 
-    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_oc( DIM1, icount1, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! ====================================================================
 //! ============================ SPECFEM3D_cm ==========================
@@ -474,7 +477,7 @@ int main( int argc, char **argv, char *envp[]) {
     DIM1 = 834917;
     DIM2 = 51153;
 
-    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=3
     icount1 = 7125;
@@ -482,7 +485,7 @@ int main( int argc, char **argv, char *envp[]) {
     DIM1 = 396849;
     DIM2 = 22477;
 
-    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=2
     icount1 = 3801;
@@ -490,7 +493,7 @@ int main( int argc, char **argv, char *envp[]) {
     DIM1 = 152001;
     DIM2 = 7209;
 
-    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=1
     icount1 = 1957;
@@ -498,7 +501,7 @@ int main( int argc, char **argv, char *envp[]) {
     DIM1 = 39929;
     DIM2 = 1225;
 
-    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3D_cm( DIM1, DIM2, icount1, icount2, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! ====================================================================
 //! ============================ SPECFEM3D_mt ==========================
@@ -509,32 +512,34 @@ int main( int argc, char **argv, char *envp[]) {
     DIM2 = 2;
     DIM3 = 7600;
 
-    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=2
     DIM1 = 3;
     DIM2 = 2;
     DIM3 = 6400;
 
-    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=3
     DIM1 = 3;
     DIM2 = 2;
     DIM3 = 5600;
 
-    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
 //! 10x10x6, c=4
     DIM1 = 3;
     DIM2 = 2;
     DIM3 = 6200;
 
-    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], local_comm_pp );
+    wrapper_timing_specfem3d_mt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
+#endif // 0
 
   } //! of myrank < 2
 
+#if 0
 //! ====================================================================
 //! ================================ FFT ===============================
 //! ====================================================================

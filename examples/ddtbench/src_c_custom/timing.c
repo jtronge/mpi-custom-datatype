@@ -5,9 +5,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <mpi.h>
+
+// TODO: MPI_Initialized not provided by MPICD
+
+static int MPI_Initialized(int *flag) {
+  *flag = 1;
+  return MPI_SUCCESS;
+}
+
 #include "../hrtimer/hrtimer.h"
 
-#include "mpi.h"
 
 //! handles all the time measurement
 
@@ -384,6 +392,7 @@ void timing_record_( int* id ) {
 	timing_record(*id);
 }
 
+#if 0
 void timing_open_file_( char* filename, int len ) {
 
 	int i;
@@ -405,10 +414,13 @@ void timing_open_file_( char* filename, int len ) {
 	free(c_filename);
 
 }
+#endif // 0
 
+#if 0
 void timing_close_file_() {
 	timing_close_file();
 }
+#endif // 0
 
 void timing_set_max_tests_( int* value ) {
 	timing_set_max_tests(*value);
@@ -474,6 +486,7 @@ void timing_record__( int* id ) {
 	timing_record(*id);
 }
 
+#if 0
 void timing_open_file__( char* filename, int len ) {
 
 	int i;
@@ -495,10 +508,13 @@ void timing_open_file__( char* filename, int len ) {
 	free(c_filename);
 
 }
+#endif // 0
 
+#if 0
 void timing_close_file__() {
 	timing_close_file();
 }
+#endif // 0
 
 void timing_set_max_tests__( int* value ) {
 	timing_set_max_tests(*value);

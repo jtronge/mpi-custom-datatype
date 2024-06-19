@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "mpi.h"
+#include <mpi.h>
 
 #include "ddtbench.h"
 
@@ -13,10 +13,12 @@
 
 void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_Comm local_communicator) {
 
-  float* array;
+#if 0
+  double* array;
   int myrank;
-  int base, typesize, bytes, i;
+  int base, typesize = sizeof(float), bytes, i;
   char method[50];
+  MPI_Status status;
 
   array = malloc( DIM1 * sizeof(float));
 
@@ -28,7 +30,6 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
   if ( myrank == 0 ) {
     snprintf(&method[0], 50, "reference");
 
-    MPI_Type_size( MPI_FLOAT, &typesize );
     bytes = typesize * DIM1;
 
     timing_init( testname, &method[0], bytes );
@@ -36,12 +37,12 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
 
   for( i=0 ; i<loop ; i++ ){
     if ( myrank == 0 ) {
-      MPI_Send( &array[0], DIM1, MPI_FLOAT, 1, itag, local_communicator );
-      MPI_Recv( &array[0], DIM1, MPI_FLOAT, 1, itag, local_communicator, MPI_STATUS_IGNORE );
+      MPI_Send( &array[0], DIM1, MPI_DOUBLE, 1, itag, local_communicator );
+      MPI_Recv( &array[0], DIM1, MPI_DOUBLE, 1, itag, local_communicator, &status );
       timing_record(3);
     } else {
-      MPI_Recv( &array[0], DIM1, MPI_FLOAT, 0, itag, local_communicator, MPI_STATUS_IGNORE );
-      MPI_Send( &array[0], DIM1, MPI_FLOAT, 0, itag, local_communicator );
+      MPI_Recv( &array[0], DIM1, MPI_DOUBLE, 0, itag, local_communicator, &status );
+      MPI_Send( &array[0], DIM1, MPI_DOUBLE, 0, itag, local_communicator );
     }
   }
 
@@ -50,6 +51,7 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
   }
 
   free(array);
+#endif // 0
 }
 
 #if 0

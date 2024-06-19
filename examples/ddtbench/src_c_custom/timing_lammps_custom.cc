@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "mpi.h"
-
 #include "ddtbench.h"
+
+#include <mpi.h>
 
 #define itag 0
 
@@ -26,20 +26,20 @@ typedef struct field_info_t {
   int i, icount, DIM1;
 } field_info_t;
 
-int state_cb(void *context, const void *buf, MPI_Count count, void **state) {
+static int state_cb(void *context, const void *buf, MPI_Count count, void **state) {
   *state = context;
   return MPI_SUCCESS;
 }
 //int free_cb(void *state) { return MPI_SUCCESS; }
-int query_cb(void *state, const void *buf, MPI_Count count, MPI_Count *packed_size) {
+static int query_cb(void *state, const void *buf, MPI_Count count, MPI_Count *packed_size) {
   field_info_t *info = (field_info_t*)state;
-  *packed_size = 8*sizeof(double) * state->icount;
+  *packed_size = 8*sizeof(double) * info->icount;
   return MPI_SUCCESS;
 }
-int pack_cb(
+static int pack_cb(
   void *state, const void *buf,
   MPI_Count count, MPI_Count offset,
-  void *dst, MPI_Count dst_size,
+  void *dst_v, MPI_Count dst_size,
   MPI_Count *used)
 {
   MPI_Count pos = 0;
@@ -50,16 +50,18 @@ int pack_cb(
     mycount = count;
   }
 
-  double *__restrict__ atag = state->atag;
-  double *__restrict__ atype = state->atype;
-  double *__restrict__ amask = state->amask;
-  double *__restrict__ amolecule = state->amolecule;
-  double *__restrict__ aq = state->aq;
-  double *__restrict__ ax = state->ax;
+  char *dst = (char*) dst_v;
+
+  double *__restrict__ atag = info->atag;
+  double *__restrict__ atype = info->atype;
+  double *__restrict__ amask = info->amask;
+  double *__restrict__ amolecule = info->amolecule;
+  double *__restrict__ aq = info->aq;
+  double *__restrict__ ax = info->ax;
   // compute the k to start with
   MPI_Count k = offset / (8*sizeof(double));
   for(; k<mycount ; k++ ) {
-    int l=temp_displacement[idx2D(k, state->i, state->icount)];
+    int l=info->temp_displacement[idx2D(k, info->i, info->icount)];
     dst[pos++] = ax[idx2D(0,l,3)];
     dst[pos++] = ax[idx2D(1,l,3)];
     dst[pos++] = ax[idx2D(2,l,3)];
@@ -75,30 +77,31 @@ int pack_cb(
   return MPI_SUCCESS;
 }
 
-int unpack_cb(
+static int unpack_cb(
   void *state, void *buf, MPI_Count count,
-  MPI_Count offset, const void *src,
+  MPI_Count offset, const void *src_v,
   MPI_Count src_size)
 {
   MPI_Count pos = 0;
   field_info_t *info = (field_info_t*)state;
+  char *src = (char*) src_v;
 
   MPI_Count mycount = src_size / (8*sizeof(double));
   if (count < mycount) {
     mycount = count;
   }
 
-  double *__restrict__ atag = state->atag;
-  double *__restrict__ atype = state->atype;
-  double *__restrict__ amask = state->amask;
-  double *__restrict__ amolecule = state->amolecule;
-  double *__restrict__ aq = state->aq;
-  double *__restrict__ ax = state->ax;
+  double *__restrict__ atag = info->atag;
+  double *__restrict__ atype = info->atype;
+  double *__restrict__ amask = info->amask;
+  double *__restrict__ amolecule = info->amolecule;
+  double *__restrict__ aq = info->aq;
+  double *__restrict__ ax = info->ax;
 
   MPI_Count k = offset / (8*sizeof(double));
 
   for(; k<mycount ; k++ ) {
-    int l=state->DIM1+k;
+    int l=info->DIM1+k;
     ax[idx2D(0,l,3)] = src[pos++];
     ax[idx2D(1,l,3)] = src[pos++];
     ax[idx2D(2,l,3)] = src[pos++];
@@ -113,7 +116,7 @@ int unpack_cb(
 }
 
 
-void timing_lammps_custom_dt( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname) {
+void timing_lammps_full_custom(int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator) {
 
   double* atag;
   double* atype;
@@ -125,7 +128,7 @@ void timing_lammps_custom_dt( int DIM1, int icount, int* list, int outer_loop, i
   double* buffer;
 
   int myrank;
-  int i, j, k, l, typesize, bytes, base, pos, isize;
+  int typesize, bytes, base, pos, isize;
 
   int* temp_displacement;
 
@@ -137,17 +140,17 @@ void timing_lammps_custom_dt( int DIM1, int icount, int* list, int outer_loop, i
   *ptypesize = 0;
 //  typesize = filehandle_debug;
 
-  atag = malloc( (DIM1+icount) * sizeof(double) );
-  atype = malloc( (DIM1+icount) * sizeof(double) );
-  amask = malloc( (DIM1+icount) * sizeof(double) );
-  amolecule = malloc( (DIM1+icount) * sizeof(double) );
-  aq = malloc( (DIM1+icount) * sizeof(double) );
-  ax  = malloc( 3 * (DIM1+icount) * sizeof(double) );
+  atag = (double*)malloc( (DIM1+icount) * sizeof(double) );
+  atype = (double*)malloc( (DIM1+icount) * sizeof(double) );
+  amask = (double*)malloc( (DIM1+icount) * sizeof(double) );
+  amolecule = (double*)malloc( (DIM1+icount) * sizeof(double) );
+  aq = (double*)malloc( (DIM1+icount) * sizeof(double) );
+  ax  = (double*)malloc( 3 * (DIM1+icount) * sizeof(double) );
 
 //conversion from fortran to c
-  temp_displacement = malloc( icount * outer_loop * sizeof(int) );
-  for( i = 0 ; i<outer_loop ; i++ ) {
-    for( j = 0 ; j<icount ; j++ ) {
+  temp_displacement = (int*)malloc( icount * outer_loop * sizeof(int) );
+  for( int i = 0 ; i<outer_loop ; i++ ) {
+    for( int j = 0 ; j<icount ; j++ ) {
       temp_displacement[idx2D(j,i,icount)] = list[idx2D(j,i,icount)] - 1;
     }
   }
@@ -189,30 +192,30 @@ void timing_lammps_custom_dt( int DIM1, int icount, int* list, int outer_loop, i
 
   MPI_Datatype type;
   MPI_Type_create_custom(state_cb, NULL, query_cb, pack_cb, unpack_cb,
-                         NULL, NULL, &info, &type);
+                         NULL, NULL, &info, 0, &type);
 
-  for( i=0 ; i<outer_loop ; i++ ) {
-
+  for( int i=0 ; i<outer_loop ; i++ ) {
+    MPI_Status status;
     info.i = i;
 
     isize = 8*icount;
     bytes = isize * sizeof(double);
-    buffer = malloc( isize * sizeof(double) );
+    buffer = (double*)malloc( isize * sizeof(double) );
 
     if ( myrank == 0 ) {
       timing_record(1);
     }
 
-    for( j=0 ; j<inner_loop ; j++ ) {
+    for( int j=0 ; j<inner_loop ; j++ ) {
 
       if ( myrank == 0 ) {
         timing_record(2);
         MPI_Send( &buffer[0], icount, type, 1, itag, local_communicator );
-        MPI_Recv( &buffer[0], icount, type, 1, itag, local_communicator, MPI_STATUS_IGNORE );
+        MPI_Recv( &buffer[0], icount, type, 1, itag, local_communicator, &status );
         timing_record(3);
         timing_record(4);
       } else {
-        MPI_Recv( &buffer[0], icount, type, 0, itag, local_communicator, MPI_STATUS_IGNORE );
+        MPI_Recv( &buffer[0], icount, type, 0, itag, local_communicator, &status );
         MPI_Send( &buffer[0], icount, type, 0, itag, local_communicator );
       }
 

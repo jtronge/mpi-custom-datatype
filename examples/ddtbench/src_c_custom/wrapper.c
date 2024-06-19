@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mpi.h"
+#include <mpi.h>
 
 #include "ddtbench.h"
 
@@ -16,7 +16,7 @@
 //! also the output for the correctness checking should be placed here
 
 void wrapper_timing_wrf_vec( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
-  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -34,14 +34,8 @@ void wrapper_timing_wrf_vec( int number_2D, int number_3D, int number_4D, int im
     strncpy(&testname[0], &ptestname[0], 50 );
   }
 
-  timing_wrf_vec_ddt( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
-
-  timing_wrf_manual( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
-
-  timing_wrf_vec_mpi_pack_ddt( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_wrf_custom( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
+    &correct_flag, &typesize, &testname[0], local_communicator );
 
   nelements = number_2D * (ie-is+1) * (je-js+1) + number_3D * (ie-is+1) * (je-js+1) * (ke-ks+1);
   for( m=0 ; m<number_4D ; m++ ) {
@@ -54,8 +48,9 @@ void wrapper_timing_wrf_vec( int number_2D, int number_3D, int number_4D, int im
 
 }
 
+#if 0
 void wrapper_timing_wrf_sa( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
-  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -74,13 +69,13 @@ void wrapper_timing_wrf_sa( int number_2D, int number_3D, int number_4D, int ims
   }
 
   timing_wrf_sa_ddt( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+    &correct_flag, &typesize, &testname[0], local_communicator );
 
   timing_wrf_manual( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+    &correct_flag, &typesize, &testname[0], local_communicator );
 
   timing_wrf_sa_mpi_pack_ddt( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+    &correct_flag, &typesize, &testname[0], local_communicator );
 
   nelements = number_2D * (ie-is+1) * (je-js+1) + number_3D * (ie-is+1) * (je-js+1) * (ke-ks+1);
   for( m=0 ; m<number_4D ; m++ ) {
@@ -91,18 +86,20 @@ void wrapper_timing_wrf_sa( int number_2D, int number_3D, int number_4D, int ims
   loops = outer_loop * inner_loop;
   timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
+#endif // 0
 
 void wrapper_timing_wrf( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
-  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ){
+  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ){
 
   wrapper_timing_wrf_vec( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    filehandle_correctness, filehandle_debug, &ptestname[0], local_communicator );
+    &ptestname[0], local_communicator );
 
-  wrapper_timing_wrf_sa( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
-    filehandle_correctness, filehandle_debug, &ptestname[50], local_communicator );
+  //wrapper_timing_wrf_sa( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
+  //  &ptestname[50], local_communicator );
 }
 
-void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+#if 0
+void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -119,11 +116,11 @@ void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int 
     strncpy( &testname[0], &ptestname[0], 50 );
   }
 
-  timing_milc_su3_zdown_ddt( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_milc_su3_zdown_ddt( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_milc_su3_zdown_manual( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_milc_su3_zdown_manual( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_milc_su3_zdown_mpi_pack_ddt( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_milc_su3_zdown_mpi_pack_ddt( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a complex uses twice
 //! the bytes a real does
@@ -132,7 +129,7 @@ void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int 
    timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
 
-void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -149,11 +146,11 @@ void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop
     strncpy( &testname[0], &ptestname[0], 50 );
   }
 
-  timing_nas_lu_x_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_lu_x_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_lu_x_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_lu_x_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_lu_x_mpi_pack_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_lu_x_mpi_pack_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -162,7 +159,7 @@ void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop
   timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
 
-void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -179,11 +176,11 @@ void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop
     strncpy(&testname[0], &ptestname[0], 50 );
   }
 
-  timing_nas_lu_y_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_lu_y_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_lu_y_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_lu_y_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_lu_y_mpi_pack_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_lu_y_mpi_pack_ddt( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -192,15 +189,15 @@ void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop
   timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
 
-void wrapper_timing_nas_lu( int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_lu( int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
-  wrapper_timing_nas_lu_x( DIM2, DIM3, outer_loop, inner_loop, filehandle_correctness, filehandle_debug, &ptestname[0], local_communicator );
+  wrapper_timing_nas_lu_x( DIM2, DIM3, outer_loop, inner_loop, &ptestname[0], local_communicator );
 
-  wrapper_timing_nas_lu_y( DIM2, DIM3, outer_loop, inner_loop, filehandle_correctness, filehandle_debug, &ptestname[50], local_communicator );
+  wrapper_timing_nas_lu_y( DIM2, DIM3, outer_loop, inner_loop, &ptestname[50], local_communicator );
 
 }
 
-void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -217,11 +214,11 @@ void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int 
     strncpy( &testname[0], &ptestname[0], 50 );
   }
 
-  timing_nas_mg_x_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_mg_x_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_mg_x_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_mg_x_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_mg_x_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_mg_x_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -231,7 +228,7 @@ void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
 }
 
-void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -248,11 +245,11 @@ void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int 
     strncpy( &testname[0], &ptestname[0], 50 );
    }
 
-   timing_nas_mg_y_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+   timing_nas_mg_y_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-   timing_nas_mg_y_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+   timing_nas_mg_y_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-   timing_nas_mg_y_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+   timing_nas_mg_y_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -262,7 +259,7 @@ void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
 }
 
-void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
  int correct_flag;
  int typesize;
@@ -279,11 +276,11 @@ void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int 
     strncpy( &testname[0], &ptestname[0], 50 );
   }
 
-  timing_nas_mg_z_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_mg_z_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_mg_z_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_mg_z_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_nas_mg_z_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_nas_mg_z_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -294,17 +291,17 @@ void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
 }
 
-void wrapper_timing_nas_mg( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_nas_mg( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
-  wrapper_timing_nas_mg_x( DIM1, DIM2, DIM3, outer_loop, inner_loop, filehandle_correctness, filehandle_debug, &ptestname[0], local_communicator );
+  wrapper_timing_nas_mg_x( DIM1, DIM2, DIM3, outer_loop, inner_loop, &ptestname[0], local_communicator );
 
-  wrapper_timing_nas_mg_y( DIM1, DIM2, DIM3, outer_loop, inner_loop, filehandle_correctness, filehandle_debug, &ptestname[50], local_communicator );
+  wrapper_timing_nas_mg_y( DIM1, DIM2, DIM3, outer_loop, inner_loop, &ptestname[50], local_communicator );
 
-  wrapper_timing_nas_mg_z( DIM1, DIM2, DIM3, outer_loop, inner_loop, filehandle_correctness, filehandle_debug, &ptestname[100], local_communicator );
+  wrapper_timing_nas_mg_z( DIM1, DIM2, DIM3, outer_loop, inner_loop, &ptestname[100], local_communicator );
 
 }
 
-void wrapper_timing_fft( int DIM1, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_fft( int DIM1, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -327,11 +324,11 @@ void wrapper_timing_fft( int DIM1, int outer_loop, int inner_loop, MPI_File file
     strncpy( &testname[0], &ptestname[0], 50 );
   }
 
-  timing_fft2d_ddt( DIM1, procs, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_fft2d_ddt( DIM1, procs, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_fft2d_manual( DIM1, procs, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_fft2d_manual( DIM1, procs, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_fft2d_mpi_pack_ddt( DIM1, procs, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_fft2d_mpi_pack_ddt( DIM1, procs, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -342,7 +339,7 @@ void wrapper_timing_fft( int DIM1, int outer_loop, int inner_loop, MPI_File file
 #endif // 0
 }
 
-void wrapper_timing_specfem3d_mt( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_specfem3d_mt( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -359,11 +356,11 @@ void wrapper_timing_specfem3d_mt( int DIM1, int DIM2, int DIM3, int outer_loop, 
     strncpy( &testname[0], &ptestname[0], 50 );
   }
 
-  timing_specfem3d_mt_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3d_mt_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_specfem3d_mt_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3d_mt_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_specfem3d_mt_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3d_mt_mpi_pack_ddt( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
   nelements = DIM1 * DIM3;
   loops = outer_loop * inner_loop;
@@ -371,8 +368,9 @@ void wrapper_timing_specfem3d_mt( int DIM1, int DIM2, int DIM3, int outer_loop, 
   timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 
 }
+#endif // 0
 
-void wrapper_timing_lammps_full( int DIM1, int icount, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_lammps_full( int DIM1, int icount, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -396,11 +394,7 @@ void wrapper_timing_lammps_full( int DIM1, int icount, int outer_loop, int inner
     utilities_random_array_shuffle( &list[i*icount], icount, DIM1 );
   }
 
-  timing_lammps_full_ddt( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
-
-  timing_lammps_full_manual( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
-
-  timing_lammps_full_mpi_pack_ddt( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_lammps_full_custom( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -411,7 +405,8 @@ void wrapper_timing_lammps_full( int DIM1, int icount, int outer_loop, int inner
   free(list);
 }
 
-void wrapper_timing_lammps_atomic( int DIM1, int icount, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+#if 0
+void wrapper_timing_lammps_atomic( int DIM1, int icount, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -435,11 +430,11 @@ void wrapper_timing_lammps_atomic( int DIM1, int icount, int outer_loop, int inn
     utilities_random_array_shuffle( &list[i*icount], icount, DIM1 );
   }
 
-  timing_lammps_atomic_ddt( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_lammps_atomic_ddt( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_lammps_atomic_manual( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_lammps_atomic_manual( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_lammps_atomic_mpi_pack_ddt( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_lammps_atomic_mpi_pack_ddt( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -450,7 +445,7 @@ void wrapper_timing_lammps_atomic( int DIM1, int icount, int outer_loop, int inn
   free(list);
 }
 
-void wrapper_timing_specfem3D_oc( int DIM1, int icount, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_specfem3D_oc( int DIM1, int icount, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -474,11 +469,11 @@ void wrapper_timing_specfem3D_oc( int DIM1, int icount, int outer_loop, int inne
     utilities_random_array_shuffle( &list[i*icount], icount, DIM1 );
   }
 
-  timing_specfem3D_oc_ddt( DIM1, icount, &list[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3D_oc_ddt( DIM1, icount, &list[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_specfem3D_oc_manual( DIM1, icount, &list[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3D_oc_manual( DIM1, icount, &list[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_specfem3D_oc_mpi_pack_ddt( DIM1, icount, &list[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3D_oc_mpi_pack_ddt( DIM1, icount, &list[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
   nelements = icount;
   loops = outer_loop * inner_loop;
@@ -487,7 +482,7 @@ void wrapper_timing_specfem3D_oc( int DIM1, int icount, int outer_loop, int inne
   free(list);
 }
 
-void wrapper_timing_specfem3D_cm( int DIM2_cm, int DIM2_ic, int icount_cm, int icount_ic, int outer_loop, int inner_loop, MPI_File filehandle_correctness, MPI_File filehandle_debug, char* ptestname, MPI_Comm local_communicator ) {
+void wrapper_timing_specfem3D_cm( int DIM2_cm, int DIM2_ic, int icount_cm, int icount_ic, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
 
   int correct_flag;
   int typesize;
@@ -515,11 +510,11 @@ void wrapper_timing_specfem3D_cm( int DIM2_cm, int DIM2_ic, int icount_cm, int i
     utilities_random_array_shuffle( &list_ic[i*icount_ic], icount_ic, DIM2_ic );
   }
 
-  timing_specfem3D_cm_ddt( DIM2_cm, DIM2_ic, icount_cm, icount_ic, &list_cm[0], &list_ic[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3D_cm_ddt( DIM2_cm, DIM2_ic, icount_cm, icount_ic, &list_cm[0], &list_ic[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_specfem3D_cm_manual( DIM2_cm, DIM2_ic, icount_cm, icount_ic, &list_cm[0], &list_ic[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3D_cm_manual( DIM2_cm, DIM2_ic, icount_cm, icount_ic, &list_cm[0], &list_ic[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
-  timing_specfem3D_cm_mpi_pack_ddt( DIM2_cm, DIM2_ic, icount_cm, icount_ic, &list_cm[0], &list_ic[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], filehandle_debug, local_communicator );
+  timing_specfem3D_cm_mpi_pack_ddt( DIM2_cm, DIM2_ic, icount_cm, icount_ic, &list_cm[0], &list_ic[0], outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
   nelements = (icount_cm+icount_ic) * 3;
   loops = outer_loop * inner_loop;
@@ -528,3 +523,4 @@ void wrapper_timing_specfem3D_cm( int DIM2_cm, int DIM2_ic, int icount_cm, int i
   free(list_cm);
   free(list_ic);
 }
+#endif // 0

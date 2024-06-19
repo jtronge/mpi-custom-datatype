@@ -2,18 +2,11 @@
 //  Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-void timing_init( char* ptestname, char* pmethod, int pbytes );
-void timing_print( int last );
-void timing_record( int id );
-void timing_set_max_tests(int value);
-#if TEST_TYPE > 1
-  void init_papi();
-  void cleanup_papi();
-#endif
-void timing_hrt_init();
+#include <mpi.h>
 
-void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_Comm local_communicator);
-void timing_basic_alltoall_nelements( int DIM1, int procs, int loop, char* testname, MPI_Comm local_communicator);
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 
 void timing_fft2d_ddt( int DIM1, int procs, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
 void timing_fft2d_manual( int DIM1, int procs, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
@@ -24,7 +17,7 @@ void timing_lammps_atomic_manual( int DIM1, int icount, int* list, int outer_loo
 void timing_lammps_atomic_mpi_pack_ddt( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
 
 void timing_lammps_full_ddt( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator);
-void timing_lammps_full_manual( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator);
+void timing_lammps_full_custom( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator);
 void timing_lammps_full_mpi_pack_ddt( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator);
 
 void timing_milc_su3_zdown_ddt( int DIM2, int DIM3, int DIM4, int DIM5, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
@@ -58,7 +51,7 @@ void timing_specfem3D_oc_ddt( int DIM1, int icount, int* list, int outer_loop, i
 void timing_specfem3D_oc_manual( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
 void timing_specfem3D_oc_mpi_pack_ddt( int DIM1, int icount, int* list, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
 
-void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
+void timing_wrf_custom ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
   int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
 void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
   int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
@@ -69,6 +62,17 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
 void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js,
   int je, int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator );
 
+
+void timing_init( char* ptestname, char* pmethod, int pbytes );
+void timing_print( int last );
+void timing_record( int id );
+void timing_set_max_tests(int value);
+#if TEST_TYPE > 1
+  void init_papi();
+  void cleanup_papi();
+#endif
+void timing_hrt_init();
+
 void utilities_fill_unique_array_1D_float( float* array, int DIM1, int base );
 void utilities_fill_unique_array_2D_float( float* array, int DIM1, int DIM2, int base );
 void utilities_fill_unique_array_3D_float( float* array, int DIM1, int DIM2, int DIM3, int base );
@@ -78,6 +82,13 @@ void utilities_fill_unique_array_1D_double( double* array, int DIM1, int base );
 void utilities_fill_unique_array_2D_double( double* array, int DIM1, int DIM2, int base );
 void utilities_fill_unique_array_3D_double( double* array, int DIM1, int DIM2, int DIM3, int base );
 void utilities_random_array_shuffle( int* index_list, int list_dim, int global_dim );
+
+void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_Comm local_communicator);
+void timing_basic_alltoall_nelements( int DIM1, int procs, int loop, char* testname, MPI_Comm local_communicator);
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 void wrapper_timing_fft( int DIM1, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator );
 void wrapper_timing_lammps_atomic( int DIM1, int icount, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator);

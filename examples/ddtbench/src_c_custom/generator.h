@@ -48,6 +48,7 @@ namespace coro {
   private:
     coro_handle_type coro;
   public:
+    generator() = default;
     explicit generator(coro_handle_type h) : coro{h} {}
     generator(const generator &) = delete;            // do not allow copy construction
     generator &operator=(const generator &) = delete; // do not allow copy assignment

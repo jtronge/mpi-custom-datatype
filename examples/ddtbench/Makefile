@@ -5,18 +5,23 @@
 include Makefile.inc
 #some parameter for the test environment, in a different file, so that the shells scripts can red them properly
 include test.inc
-all: ddtbench_c ddtbench_f90 ddtbench_c_onesided ddtbench_f90_onesided
+#all: ddtbench_c ddtbench_f90 ddtbench_c_onesided ddtbench_f90_onesided
+#all: ddtbench_c_custom ddtbench_c ddtbench_f90 ddtbench_c_onesided ddtbench_f90_onesided
+all: ddtbench_c_custom ddtbench_c
+#all: ddtbench_c_custom
 
 clean:
 	$(MAKE) -C src_f90 clean
+	$(MAKE) -C src_c_custom clean
 	$(MAKE) -C src_c clean
 	$(MAKE) -C src_c_onesided clean
 	$(MAKE) -C src_f90_onesided clean
-	rm -f ddtbench_c ddtbench_f90 ddtbench_c_onesided ddtbench_f90_onesided
+	rm -f ddtbench_c ddtbench_c_custom ddtbench_f90 ddtbench_c_onesided ddtbench_f90_onesided
 
 distclean: clean
 	$(MAKE) -C src_f90 distclean
 	$(MAKE) -C src_c distclean
+	$(MAKE) -C src_c_custom distclean
 	$(MAKE) -C src_c_onesided distclean
 	$(MAKE) -C src_f90_onesided distclean
 	rm -rf src_mpi
@@ -25,6 +30,11 @@ distclean: clean
 ddtbench_c:
 	$(MAKE) -C src_c ddtbench
 	mv src_c/ddtbench ddtbench_c
+
+ddtbench_c_custom:
+	$(MAKE) -C src_c_custom ddtbench
+	mv src_c_custom/ddtbench ddtbench_c_custom
+
 
 ddtbench_f90:
 	$(MAKE) -C src_f90 ddtbench
