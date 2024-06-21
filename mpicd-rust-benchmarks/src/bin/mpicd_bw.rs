@@ -4,7 +4,7 @@ use mpicd::datatype::MessageBuffer;
 use mpicd_rust_benchmarks::{
     BenchmarkArgs, BenchmarkKind, BenchmarkDatatype, BenchmarkDatatypeBuffer,
     BandwidthOptions, BandwidthBenchmark, ManualPack, ComplexVec, StructVecArray,
-    StructSimpleArray,
+    StructSimpleArray, StructSimpleNoGapArray,
 };
 
 struct Benchmark<R, C>
@@ -132,6 +132,19 @@ where
                     let _ = buffers.insert(new_buffers);
                 }
             }
+            BenchmarkDatatypeBuffer::StructSimpleNoGap(ref mut buffers) => {
+                if let Some(buffers) = buffers.as_mut() {
+                    assert_eq!(buffers.len(), window_size);
+                    for buf in buffers.iter_mut() {
+                        buf.update(size);
+                    }
+                } else {
+                    let new_buffers = (0..window_size)
+                        .map(|_| StructSimpleNoGapArray::new(size))
+                        .collect();
+                    let _ = buffers.insert(new_buffers);
+                }
+            }
         }
     }
 
@@ -146,6 +159,10 @@ where
                 bandwidth(self.rank, &self.ctx, self.kind, buffers);
             }
             BenchmarkDatatypeBuffer::StructSimple(ref mut buffers) => {
+                let buffers = buffers.as_mut().expect("missing buffers");
+                bandwidth(self.rank, &self.ctx, self.kind, buffers);
+            }
+            BenchmarkDatatypeBuffer::StructSimpleNoGap(ref mut buffers) => {
                 let buffers = buffers.as_mut().expect("missing buffers");
                 bandwidth(self.rank, &self.ctx, self.kind, buffers);
             }
@@ -166,6 +183,7 @@ fn main() {
         BenchmarkDatatype::DoubleVec => BenchmarkDatatypeBuffer::DoubleVec(None),
         BenchmarkDatatype::StructVec => BenchmarkDatatypeBuffer::StructVec(None),
         BenchmarkDatatype::StructSimple => BenchmarkDatatypeBuffer::StructSimple(None),
+        BenchmarkDatatype::StructSimpleNoGap => BenchmarkDatatypeBuffer::StructSimpleNoGap(None),
     };
     let benchmark = Benchmark {
         kind: args.kind,

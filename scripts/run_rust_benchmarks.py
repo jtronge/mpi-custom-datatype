@@ -14,6 +14,7 @@ def run_benchmark(args, output_file):
         print('#SBATCH -N 2', file=temp_fp)
         print(f'#SBATCH -o {output_file}', file=temp_fp)
         print(f'export OMPI_MCA_pml=ucx', file=temp_fp)
+        # print('prterun -np 2 -N 1', ' '.join(args), file=temp_fp)
         print('mpirun -np 2 -N 1', ' '.join(args), file=temp_fp)
         temp_fp.flush()
         subprocess.run(['sbatch', '-W', temp_fp.name], check=True)

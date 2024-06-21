@@ -2,7 +2,7 @@ use clap::Parser;
 use mpi::traits::*;
 use mpicd_rust_benchmarks::{
     RsmpiArgs, RsmpiDatatype, RsmpiDatatypeBuffer, BandwidthOptions, BandwidthBenchmark,
-    StructVecArray, StructSimpleArray,
+    StructVecArray, StructSimpleArray, StructSimpleNoGapArray,
 };
 
 fn bandwidth<C, B>(rank: i32, comm: &C, buffers: &mut Vec<B>)
@@ -57,6 +57,10 @@ impl<C: Communicator> BandwidthBenchmark for RsmpiBenchmark<C> {
                 let buf = (0..window_size).map(|_| StructSimpleArray::new(size).0).collect();
                 let _ = buffers.insert(buf);
             }
+            RsmpiDatatypeBuffer::StructSimpleNoGap(ref mut buffers) => {
+                let buf = (0..window_size).map(|_| StructSimpleNoGapArray::new(size).0).collect();
+                let _ = buffers.insert(buf);
+            }
         }
     }
 
@@ -71,6 +75,10 @@ impl<C: Communicator> BandwidthBenchmark for RsmpiBenchmark<C> {
                 bandwidth(self.rank, &self.comm, buffers);
             }
             RsmpiDatatypeBuffer::StructSimple(ref mut buffers) => {
+                let buffers = buffers.as_mut().expect("missing struct-vec buffer");
+                bandwidth(self.rank, &self.comm, buffers);
+            }
+            RsmpiDatatypeBuffer::StructSimpleNoGap(ref mut buffers) => {
                 let buffers = buffers.as_mut().expect("missing struct-vec buffer");
                 bandwidth(self.rank, &self.comm, buffers);
             }
@@ -91,6 +99,7 @@ fn main() {
         RsmpiDatatype::Bytes => RsmpiDatatypeBuffer::Bytes(None),
         RsmpiDatatype::StructVec => RsmpiDatatypeBuffer::StructVec(None),
         RsmpiDatatype::StructSimple => RsmpiDatatypeBuffer::StructSimple(None),
+        RsmpiDatatype::StructSimpleNoGap => RsmpiDatatypeBuffer::StructSimpleNoGap(None),
     };
     let benchmark = RsmpiBenchmark {
         comm: world,
