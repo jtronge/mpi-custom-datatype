@@ -325,6 +325,8 @@ int main( int argc, char **argv, char *envp[]) {
 
     wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
 
+#endif // 0
+
 //! ====================================================================
 //! =============================== NAS_LU =============================
 //! ====================================================================
@@ -391,8 +393,6 @@ int main( int argc, char **argv, char *envp[]) {
     DIM3 = 258;
 
     wrapper_timing_nas_mg( DIM1, DIM2, DIM3, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
-
-#endif // 0
 
 //! ====================================================================
 //! ============================ LAMMPS_full ===========================

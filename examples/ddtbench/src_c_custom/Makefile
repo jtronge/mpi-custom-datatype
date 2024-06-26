@@ -21,7 +21,7 @@ TEST_TYPE=1  # 1: time
              # 2: papi
              # 3: time+papi
 
-OPTIMIZATION=-O3
+OPTIMIZATION=-O3 -march=native -ftree-vectorize
 DEBUG=
 WARNINGS=-Wall
 
@@ -38,7 +38,8 @@ DDTBENCH_OBJS = \
 	timing.o \
 	timing_basic.o \
 	timing_lammps_custom.o \
-	timing_wrf_custom.o
+	timing_wrf_custom.o \
+	timing_nas_custom.o
 
 # clear out all suffixes
 .SUFFIXES:

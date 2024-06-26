@@ -168,6 +168,8 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
       }
     }
   }
+
+  co_yield info->buf_size - size;
 }
 
 static int state_cb(void *context, const void *buf, MPI_Count count, void **state) {
@@ -315,7 +317,7 @@ void timing_wrf_custom ( int number_2D, int number_3D, int number_4D, int ims, i
   }
 
   if ( myrank == 0 ) {
-    snprintf( &method[0], 50, "manual" );
+    snprintf( &method[0], 50, "custom" );
 
 //! compute the number of bytes to be communicated
 //! first compute the number of elements in the subarrays

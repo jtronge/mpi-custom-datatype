@@ -50,7 +50,7 @@ static int pack_cb(
     mycount = count;
   }
 
-  char *dst = (char*) dst_v;
+  double *dst = (double*) dst_v;
 
   double *__restrict__ atag = info->atag;
   double *__restrict__ atype = info->atype;
@@ -183,7 +183,7 @@ void timing_lammps_full_custom(int DIM1, int icount, int* list, int outer_loop, 
   utilities_fill_unique_array_1D_double( &amolecule[0], DIM1+icount, base );
 
   if ( myrank == 0 ) {
-    snprintf( method, 50, "manual" );
+    snprintf( method, 50, "custom" );
 
     bytes = icount * 8 * sizeof(double);
 
