@@ -21,6 +21,8 @@ typedef intptr_t MPI_Request;
 
 #define MPI_BYTE 1
 
+#define MPI_ANY_SOURCE -1
+
 typedef struct MPI_Status {
     int count;
     int cancelled;
@@ -45,6 +47,8 @@ int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
               int tag, MPI_Comm comm, MPI_Request *request);
 int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
               MPI_Comm comm, MPI_Request *request);
+int MPI_Probe(int source, int tag, MPI_Comm comm, MPI_Status *status);
+int MPI_Get_count(MPI_Status *status, MPI_Datatype datatype, int *count);
 
 int MPI_Wait(MPI_Request *request, MPI_Status *status);
 int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status *array_of_statuses);

@@ -144,6 +144,37 @@ pub unsafe extern "C" fn MPI_Irecv(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn MPI_Probe(
+    source: c_int,
+    tag: c_int,
+    comm: c::Comm,
+    status: *mut c::Status,
+) -> c::ReturnStatus {
+    assert_eq!(comm, consts::COMM_WORLD);
+
+    with_context(move |ctx, _cctx| {
+        let source = if source == consts::ANY_SOURCE { None } else { Some(source) };
+        let probe_result = ctx.probe(source, tag).expect("missing matching message for probe");
+        (*status).count = probe_result.size as c_int;
+        (*status).cancelled = 0;
+        (*status).source = probe_result.source;
+        (*status).tag = tag;
+        (*status).error = 0;
+        consts::SUCCESS
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn MPI_Get_count(
+    status: *mut c::Status,
+    _datatype: c::Datatype,
+    count: *mut c_int,
+) -> c::ReturnStatus {
+    *count = (*status).count;
+    consts::SUCCESS
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn MPI_Wait(
     request: *mut c::Request,
     _status: *mut c::Status,

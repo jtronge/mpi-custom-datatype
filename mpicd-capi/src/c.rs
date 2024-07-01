@@ -94,9 +94,9 @@ pub type Comm = c_int;
 /// MPI_Status struct.
 #[repr(C)]
 pub struct Status {
-    count: c_int,
-    cancelled: c_int,
-    source: c_int,
-    tag: c_int,
-    error: c_int,
+    pub count: c_int,
+    pub cancelled: c_int,
+    pub source: c_int,
+    pub tag: c_int,
+    pub error: c_int,
 }

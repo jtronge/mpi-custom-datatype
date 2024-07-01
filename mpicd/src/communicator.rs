@@ -4,10 +4,24 @@ use crate::datatype::MessageBuffer;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Error {
+    /// An internal error occured.
     InternalError,
+
+    /// No message was found during a probe operation.
+    NoProbeMessage,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Result of a probe call.
+#[derive(Copy, Clone, Debug)]
+pub struct ProbeResult {
+    /// Number of bytes.
+    pub size: usize,
+
+    /// Source process.
+    pub source: i32,
+}
 
 /// Trait implementing simple p2p communication on top of some lower-level library.
 pub trait Communicator {
@@ -27,6 +41,9 @@ pub trait Communicator {
 
     /// Do a non-blocking recv of data from the source with the specified tag.
     unsafe fn irecv<B: MessageBuffer + ?Sized>(&self, data: &mut B, source: i32, tag: i32) -> Result<Self::Request>;
+
+    /// Probe for an incoming message.
+    fn probe(&self, source: Option<i32>, tag: i32) -> Result<ProbeResult>;
 
     /// Wait for all requests in list to complete.
     unsafe fn waitall(&self, requests: &[Self::Request]) -> Result<Vec<Status>>;

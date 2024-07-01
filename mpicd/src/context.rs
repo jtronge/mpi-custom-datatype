@@ -3,10 +3,12 @@ use crate::{
     communicator::{self, Communicator},
     datatype::MessageBuffer,
     message::{PackSendMessage, PackRecvMessage, ContiguousSendMessage, ContiguousRecvMessage},
+    request::{encode_tag, decode_tag, BARRIER_TAG, PROBE_TAG_MASK, TAG_MASK},
     Handle, Status,
 };
-use mpicd_ucx_sys::ucp_worker_progress;
+use mpicd_ucx_sys::{ucp_tag_probe_nb, ucp_worker_progress};
 use std::cell::RefCell;
+use std::mem::MaybeUninit;
 use std::rc::Rc;
 
 /// Context handle.
@@ -32,8 +34,6 @@ impl Context {
     ) -> communicator::Result<<Self as Communicator>::Request> {
         let mut handle = self.handle.borrow_mut();
         assert!(dest < (handle.system.size as i32));
-        // let endpoint = handle.endpoints[dest as usize].clone();
-        // let datatype = rust_ucp_dt_make_contig(1) as u64;
 
         if let Some(packer) = data.pack() {
             let packer = packer.expect("failed to initialize PackState");
@@ -43,39 +43,6 @@ impl Context {
             let request = ContiguousSendMessage::new(data.ptr() as *const _, data.count(), dest, tag);
             Ok(handle.add_message(request))
         }
-
-/*
-        let ptr = data.as_ptr();
-        let count = data.count();
-        let datatype = UCXBuffer::new_type(&data, ptr, None, count);
-        let dt_id = datatype.dt_id();
-        let ptr = datatype.buf_ptr();
-        let count = datatype.buf_count();
-        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
-
-        let param = ucp_request_param_t {
-            op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
-                | UCP_OP_ATTR_FIELD_CALLBACK
-                | UCP_OP_ATTR_FIELD_USER_DATA,
-            datatype: dt_id,
-            cb: ucp_request_param_t__bindgen_ty_1 {
-                send: Some(request::send_nbx_callback),
-            },
-            user_data: req_data as *mut _,
-            ..Default::default()
-        };
-
-        let request = ucp_tag_send_nbx(
-            endpoint,
-            data.ptr() as *const _,
-            data.count(),
-            tag,
-            &param,
-        );
-
-        let req_id = handle.add_request(Request::new(request, Some(req_data)));
-        Ok(req_id)
-*/
     }
 
     unsafe fn internal_irecv<B: MessageBuffer + ?Sized>(
@@ -84,7 +51,6 @@ impl Context {
         tag: u64,
     ) -> communicator::Result<<Self as Communicator>::Request> {
         let mut handle = self.handle.borrow_mut();
-        // let datatype = rust_ucp_dt_make_contig(1) as u64;
 
         if let Some(unpack_method) = data.unpack() {
             let unpack_method = unpack_method
@@ -95,46 +61,6 @@ impl Context {
             let request = ContiguousRecvMessage::new(data.ptr_mut(), data.count(), tag);
             Ok(handle.add_message(request))
         }
-
-/*
-        let ptr = data.as_ptr();
-        let ptr_mut = data.as_mut_ptr();
-        let count = data.count();
-        let datatype = UCXBuffer::new_type(&mut data, ptr, ptr_mut, count);
-        let dt_id = datatype.dt_id();
-        let ptr = datatype.buf_ptr_mut().expect("missing mutable buffer pointer");
-        let count = datatype.buf_count();
-
-        // Callback info
-        let req_data: *mut RequestData = Box::into_raw(Box::new(RequestData::new(datatype)));
-        let param = ucp_request_param_t {
-            op_attr_mask: UCP_OP_ATTR_FIELD_DATATYPE
-                | UCP_OP_ATTR_FIELD_CALLBACK
-                | UCP_OP_ATTR_FIELD_USER_DATA
-                | UCP_OP_ATTR_FLAG_NO_IMM_CMPL,
-            datatype: dt_id,
-            cb: ucp_request_param_t__bindgen_ty_1 {
-                recv: Some(request::tag_recv_nbx_callback),
-            },
-            user_data: req_data as *mut _,
-            ..Default::default()
-        };
-
-        debug!("(receive call) data.count() = {}", data.count());
-
-        // NOTE: The correct source rank is encoded in the tag.
-        let request = ucp_tag_recv_nbx(
-            handle.worker,
-            ptr,
-            count,
-            tag,
-            TAG_MASK,
-            &param,
-        );
-
-        let req_id = handle.add_request(Request::new(request, Some(req_data)));
-        Ok(req_id)
-*/
     }
 }
 
@@ -199,6 +125,29 @@ impl Communicator for Context {
         self.internal_irecv(data, encode_tag(0, source, tag))
     }
 
+    fn probe(&self, source: Option<i32>, tag: i32) -> communicator::Result<communicator::ProbeResult> {
+        unsafe {
+            let mut info = MaybeUninit::uninit();
+            let handle = self.handle.borrow_mut();
+            let (tag, tag_mask) = if let Some(source) = source {
+                (encode_tag(0, source, tag), TAG_MASK)
+            } else {
+                (encode_tag(0, 0, tag), PROBE_TAG_MASK)
+            };
+            let result = ucp_tag_probe_nb(handle.system.worker, tag, tag_mask, 0, info.as_mut_ptr());
+            if result != std::ptr::null_mut() {
+                let info = info.assume_init();
+                let (_, source, _) = decode_tag(info.sender_tag);
+                Ok(communicator::ProbeResult {
+                    size: info.length,
+                    source,
+                })
+            } else {
+                Err(communicator::Error::NoProbeMessage)
+            }
+        }
+    }
+
     /// Wait for all requests to complete.
     unsafe fn waitall(
         &self,
@@ -228,18 +177,4 @@ impl Communicator for Context {
         }
         Ok(statuses)
     }
-}
-
-/// Internal tag to be used for barriers.
-const BARRIER_TAG: u8 = 1;
-
-/// Encode a tag into a 64-bit UCX tag.
-#[inline]
-fn encode_tag(internal_tag: u8, rank: i32, tag: i32) -> u64 {
-    // The rank should be able to fit into 24 bits.
-    assert!(rank < ((1 << 24) - 1));
-    let internal_tag = internal_tag as u64;
-    let rank = (rank as u64) & 0xFFFFFF;
-    let tag = tag as u64;
-    (internal_tag << 56) | (rank << 32) | tag
 }

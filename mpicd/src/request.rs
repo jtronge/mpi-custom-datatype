@@ -129,8 +129,34 @@ impl Drop for Request {
     }
 }
 
+/// Encode a tag into a 64-bit UCX tag.
+#[inline]
+pub fn encode_tag(internal_tag: u8, rank: i32, tag: i32) -> u64 {
+    // The rank should be able to fit into 24 bits.
+    assert!(rank < ((1 << 24) - 1));
+    let internal_tag = internal_tag as u64;
+    let rank = (rank as u64) & 0xFFFFFF;
+    let tag = tag as u64;
+    (internal_tag << 56) | (rank << 32) | tag
+}
+
+/// Decode a tag into (internal_tag, rank, tag).
+#[inline]
+pub fn decode_tag(tag: u64) -> (u8, i32, i32) {
+    let internal_tag = (tag >> 56) as u8;
+    let rank = ((tag >> 32) & 0xFFFFFF) as i32;
+    let app_tag = (tag & 0xFFFFFFFF) as i32;
+    (internal_tag, rank, app_tag)
+}
+
 /// The tag mask used for receive requests; for now all bits are important.
-const TAG_MASK: u64 = !0;
+pub const TAG_MASK: u64 = !0;
+
+/// Tag mask for probes.
+pub const PROBE_TAG_MASK: u64 = 0xFF000000FFFFFFFF;
+
+/// Internal tag to be used for barriers.
+pub const BARRIER_TAG: u8 = 1;
 
 /// Request data struct used to hold callback user data for a request.
 pub(crate) struct RequestData {
