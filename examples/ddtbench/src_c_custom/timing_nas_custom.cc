@@ -32,9 +32,10 @@ struct pack_info_t {
   int pack_unpack; // 0: pack, 1: unpack
 
   template<typename PackIndexFn_, typename UnpackIndexFn_>
-  pack_info_t(PackIndexFn_&& pidx, UnpackIndexFn_&& uidx, int outer_ub, int inner_ub)
+  pack_info_t(PackIndexFn_&& pidx, UnpackIndexFn_&& uidx, int outer_ub, int inner_ub, double *array)
   : packidx(std::forward<PackIndexFn_>(pidx))
   , unpackidx(std::forward<UnpackIndexFn_>(uidx))
+  , array(array)
   , outer_ub(outer_ub)
   , inner_ub(inner_ub)
   { }
@@ -64,18 +65,17 @@ static coro::generator<MPI_Count> pack_unpack_coro(PackInfoT *info)
   if (info->pack_unpack == 0) {
     /* pack */
     for( int k=info->outer_lb ; k<outer_ub ; k++ ) {
-      for( int l=0 ; l<((inner_ub-info->inner_lb) + UNIT_PACK_SIZE-1)/UNIT_PACK_SIZE; l++ ) {
-        int ll = (l+info->inner_lb)*UNIT_PACK_SIZE;
-        if ((ll+UNIT_PACK_SIZE) <= inner_ub) {
+      for( int l=info->inner_lb; l<inner_ub; l += UNIT_PACK_SIZE ) {
+        if ((l+UNIT_PACK_SIZE) <= inner_ub) {
           for (int i = 0; i < UNIT_PACK_SIZE; i++) {
-            buffer[pos++] = array[info->packidx(k, ll+i)];
+            buffer[pos++] = array[info->packidx(k, l+i)];
           }
           size -= UNIT_PACK_SIZE*sizeof(double);
         } else {
-          for (int i = 0; i < inner_ub - ll; i++) {
-            buffer[pos++] = array[info->packidx(k, ll+i)];
+          for (int i = 0; i < inner_ub - l; i++) {
+            buffer[pos++] = array[info->packidx(k, l+i)];
           }
-          size -= (inner_ub - ll)*sizeof(double);
+          size -= (inner_ub - l)*sizeof(double);
         }
         assert(size >= 0);
         if (size < UNIT_PACK_SIZE*sizeof(double)) {
@@ -165,13 +165,13 @@ static int unpack_cb(
 }
 
 template<int OuterLB, int InnerLB, typename PackIndexFn, typename UnpackIndexFn>
-auto make_pack_info(PackIndexFn&& pix, UnpackIndexFn&& uix, int outerub, int innerub)
+auto make_pack_info(PackIndexFn&& pix, UnpackIndexFn&& uix, int outerub, int innerub, double *array)
 {
   return new pack_info_t<OuterLB, InnerLB,
                      PackIndexFn,
                      UnpackIndexFn>(std::forward<PackIndexFn>(pix),
                                     std::forward<UnpackIndexFn>(uix),
-                                    outerub, innerub);
+                                    outerub, innerub, array);
 }
 
 template<typename PackInfoT>
@@ -224,7 +224,7 @@ void timing_nas_lu_y_custom( int DIM2, int DIM3, int outer_loop, int inner_loop,
     },
     [&](int k, int l){
       return idx3D(l,0,k,DIM1,DIM2+2);
-    }, DIM3, DIM1);
+    }, DIM3, DIM1, array);
   MPI_Datatype type = create_mpi_datatype(info);
   MPI_Status status;
 
@@ -308,7 +308,7 @@ void timing_nas_lu_x_custom( int DIM2, int DIM3, int outer_loop, int inner_loop,
     },
     [&](int k, int l){
       return idx3D(l,k,0,DIM1,DIM2+2);
-    }, DIM2+1, DIM1);
+    }, DIM2+1, DIM1, array);
   MPI_Datatype type = create_mpi_datatype(info);
   MPI_Status status;
 
@@ -390,7 +390,7 @@ void timing_nas_mg_x_custom( int DIM1, int DIM2, int DIM3, int outer_loop, int i
     },
     [&](int k, int l){
       return idx3D(DIM1-1,l,k,DIM1,DIM2);
-    }, DIM3-1, DIM2-1);
+    }, DIM3-1, DIM2-1, array);
   MPI_Datatype type = create_mpi_datatype(info);
   MPI_Status status;
 
@@ -470,7 +470,7 @@ void timing_nas_mg_y_custom( int DIM1, int DIM2, int DIM3, int outer_loop, int i
     },
     [&](int k, int l){
       return idx3D(l,DIM2-1,k,DIM1,DIM2);
-    }, DIM3-1, DIM1-1);
+    }, DIM3-1, DIM1-1, array);
   MPI_Datatype type = create_mpi_datatype(info);
   MPI_Status status;
 
@@ -551,7 +551,7 @@ void timing_nas_mg_z_custom( int DIM1, int DIM2, int DIM3, int outer_loop, int i
     },
     [&](int k, int l){
       return idx3D(l,k,0,DIM1,DIM2);
-    }, DIM2-1, DIM1-1);
+    }, DIM2-1, DIM1-1, array);
   MPI_Datatype type = create_mpi_datatype(info);
   MPI_Status status;
 
