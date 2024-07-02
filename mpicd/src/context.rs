@@ -134,11 +134,8 @@ impl Communicator for Context {
             } else {
                 (encode_tag(0, 0, tag), PROBE_TAG_MASK)
             };
-            println!("tag: {:x}, tag_mask: {:x}", tag, tag_mask);
-            // Note the loop count is arbitrary -- maybe need to make this configurable?
-            for _ in 0..8192 {
-                ucp_worker_progress(handle.system.worker);
 
+            loop {
                 let result = ucp_tag_probe_nb(handle.system.worker, tag, tag_mask, 0, info.as_mut_ptr());
                 if result != std::ptr::null_mut() {
                     let info = info.assume_init();
@@ -148,9 +145,9 @@ impl Communicator for Context {
                         source,
                     });
                 }
-            }
 
-            Err(communicator::Error::NoProbeMessage)
+                ucp_worker_progress(handle.system.worker);
+            }
         }
     }
 
