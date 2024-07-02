@@ -33,9 +33,9 @@ struct pack_info_t {
 
   template<typename PackIndexFn_, typename UnpackIndexFn_>
   pack_info_t(PackIndexFn_&& pidx, UnpackIndexFn_&& uidx, int outer_ub, int inner_ub, double *array)
-  : packidx(std::forward<PackIndexFn_>(pidx))
+  : array(array)
+  , packidx(std::forward<PackIndexFn_>(pidx))
   , unpackidx(std::forward<UnpackIndexFn_>(uidx))
-  , array(array)
   , outer_ub(outer_ub)
   , inner_ub(inner_ub)
   { }
@@ -239,10 +239,12 @@ void timing_nas_lu_y_custom( int DIM2, int DIM3, int outer_loop, int inner_loop,
     for( j=0 ; j<inner_loop ; j++ ) {
       if ( myrank == 0 ) {
 //! pack the data
+        timing_record(2);
         MPI_Send( &buffer[0], 1, type, 1, itag, local_communicator );
         MPI_Recv( &buffer[0], 1, type, 1, itag, local_communicator, &status );
         timing_record(3);
 //! unpack the data
+        timing_record(4);
       } else {
         MPI_Recv( &buffer[0], 1, type, 0, itag, local_communicator, &status );
 //! unpack the data

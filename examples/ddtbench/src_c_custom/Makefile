@@ -39,6 +39,7 @@ DDTBENCH_OBJS = \
 	timing_basic.o \
 	timing_lammps_custom.o \
 	timing_wrf_custom.o \
+	timing_milc_custom.o \
 	timing_nas_custom.o
 
 # clear out all suffixes

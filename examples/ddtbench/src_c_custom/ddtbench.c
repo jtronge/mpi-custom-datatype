@@ -295,8 +295,6 @@ int main( int argc, char **argv, char *envp[]) {
 //! ==================== MILC su3 zdown direction ======================
 //! ====================================================================
 
-#if 0
-
     DIM1 = 16;
     DIM2 = 16;
     DIM3 = 16;
@@ -324,8 +322,6 @@ int main( int argc, char **argv, char *envp[]) {
     DIM4 = 8;
 
     wrapper_timing_milc_su3_zdown( DIM1, DIM2, DIM3, DIM4, outer_loop, inner_loop, &testname[0][0], MPI_COMM_WORLD );
-
-#endif // 0
 
 //! ====================================================================
 //! =============================== NAS_LU =============================
