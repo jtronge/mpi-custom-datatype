@@ -7,5 +7,5 @@ add_executable(osu_bw osu_bw.c)
 add_executable(probe probe.c)
 
 foreach(BIN hello_world datatype0 datatype1 ring regions osu_bw probe)
-    target_link_libraries(${BIN} PUBLIC mpicd-capi)
+    target_link_libraries(${BIN} PUBLIC mpicd_capi)
 endforeach()
