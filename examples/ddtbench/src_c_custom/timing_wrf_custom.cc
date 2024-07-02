@@ -370,12 +370,10 @@ void timing_wrf_custom ( int number_2D, int number_3D, int number_4D, int ims, i
 
 //! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
-        timing_record(2);
         MPI_Send( &buffer[0], 1, type, 1, itag, local_communicator );
 //! receive the data back from rank 1
         MPI_Recv( &buffer[0], 1, type, 1, itag, local_communicator, &status );
         timing_record(3);
-        timing_record(4);
 //! now for rank 1
       } else {
 //! receive from rank 0

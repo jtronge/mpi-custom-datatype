@@ -209,11 +209,9 @@ void timing_lammps_full_custom(int DIM1, int icount, int* list, int outer_loop, 
     for( int j=0 ; j<inner_loop ; j++ ) {
 
       if ( myrank == 0 ) {
-        timing_record(2);
         MPI_Send( &buffer[0], icount, type, 1, itag, local_communicator );
         MPI_Recv( &buffer[0], icount, type, 1, itag, local_communicator, &status );
         timing_record(3);
-        timing_record(4);
       } else {
         MPI_Recv( &buffer[0], icount, type, 0, itag, local_communicator, &status );
         MPI_Send( &buffer[0], icount, type, 0, itag, local_communicator );

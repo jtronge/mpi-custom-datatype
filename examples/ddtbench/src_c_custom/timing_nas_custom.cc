@@ -239,12 +239,10 @@ void timing_nas_lu_y_custom( int DIM2, int DIM3, int outer_loop, int inner_loop,
     for( j=0 ; j<inner_loop ; j++ ) {
       if ( myrank == 0 ) {
 //! pack the data
-        timing_record(2);
         MPI_Send( &buffer[0], 1, type, 1, itag, local_communicator );
         MPI_Recv( &buffer[0], 1, type, 1, itag, local_communicator, &status );
         timing_record(3);
 //! unpack the data
-        timing_record(4);
       } else {
         MPI_Recv( &buffer[0], 1, type, 0, itag, local_communicator, &status );
 //! unpack the data

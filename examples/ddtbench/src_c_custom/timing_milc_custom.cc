@@ -133,11 +133,9 @@ void timing_milc_su3_zdown_manual( int DIM2, int DIM3, int DIM4, int DIM5, int o
     for( j=0 ; j<inner_loop ; j++) {
 
       if ( myrank == 0 ) {
-        timing_record(2);
         MPI_Send( &buffer[0], 1, type, 1, itag, local_communicator );
         MPI_Recv( &buffer[0], 1, type, 1, itag, local_communicator, MPI_STATUS_IGNORE );
         timing_record(3);
-        timing_record(4);
       } else {
         MPI_Recv( &buffer[0], 1, type, 0, itag, local_communicator, MPI_STATUS_IGNORE );
         MPI_Send( &buffer[0], 1, type, 0, itag, local_communicator );
