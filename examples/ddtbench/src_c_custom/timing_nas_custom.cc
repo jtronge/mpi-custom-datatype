@@ -67,14 +67,18 @@ static coro::generator<MPI_Count> pack_unpack_coro(PackInfoT *info)
     for( int k=info->outer_lb ; k<outer_ub ; k++ ) {
       for( int l=info->inner_lb; l<inner_ub; l += UNIT_PACK_SIZE ) {
         if ((l+UNIT_PACK_SIZE) <= inner_ub) {
-          for (int i = 0; i < UNIT_PACK_SIZE; i++) {
-            buffer[pos++] = array[info->packidx(k, l+i)];
-          }
+          //for (int i = 0; i < UNIT_PACK_SIZE; i++) {
+          //  buffer[pos++] = array[info->packidx(k, l+i)];
+          //}
+          memcpy(&buffer[pos], &array[info->packidx(k, l)], UNIT_PACK_SIZE);
+          pos += UNIT_PACK_SIZE;
           size -= UNIT_PACK_SIZE*sizeof(double);
         } else {
-          for (int i = 0; i < inner_ub - l; i++) {
-            buffer[pos++] = array[info->packidx(k, l+i)];
-          }
+          //for (int i = 0; i < inner_ub - l; i++) {
+          //  buffer[pos++] = array[info->packidx(k, l+i)];
+          //}
+          memcpy(&buffer[pos], &array[info->packidx(k, l)], inner_ub - l);
+          pos += inner_ub - l;
           size -= (inner_ub - l)*sizeof(double);
         }
         assert(size >= 0);
@@ -90,18 +94,21 @@ static coro::generator<MPI_Count> pack_unpack_coro(PackInfoT *info)
   } else {
     /* unpack */
     for( int k=info->outer_lb ; k<outer_ub ; k++ ) {
-      for( int l=0 ; l<((inner_ub-info->inner_lb) + UNIT_PACK_SIZE-1)/UNIT_PACK_SIZE; l++ ) {
-        int ll = (l+info->inner_lb)*UNIT_PACK_SIZE;
-        if ((ll+UNIT_PACK_SIZE) <= inner_ub) {
-          for (int i = 0; i < UNIT_PACK_SIZE; i++) {
-            array[info->unpackidx(k, ll+i)] = buffer[pos++];
-          }
+      for( int l=0 ; l<inner_ub; l += UNIT_PACK_SIZE ) {
+        if (l+UNIT_PACK_SIZE <= inner_ub) {
+          //for (int i = 0; i < UNIT_PACK_SIZE; i++) {
+          //  array[info->unpackidx(k, l+i)] = buffer[pos++];
+          //}
+          memcpy(&array[info->unpackidx(k, l)], &buffer[pos], UNIT_PACK_SIZE);
+          pos += UNIT_PACK_SIZE;
           size -= UNIT_PACK_SIZE*sizeof(double);
         } else {
-          for (int i = 0; i < inner_ub - ll; i++) {
-            array[info->unpackidx(k, ll+i)] = buffer[pos++];
-          }
-          size -= (inner_ub - ll)*sizeof(double);
+          //for (int i = 0; i < inner_ub - l; i++) {
+          //  array[info->unpackidx(k, l+i)] = buffer[pos++];
+          //}
+          memcpy(&array[info->unpackidx(k, l)], &buffer[pos], inner_ub - l);
+          pos += inner_ub - l;
+          size -= (inner_ub - l)*sizeof(double);
         }
         assert(size >= 0);
         if (size < UNIT_PACK_SIZE*sizeof(double)) {
