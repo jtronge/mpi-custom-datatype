@@ -3,3 +3,6 @@ build
 **/target
 core.*
 *.perf
+*.o
+examples/ddtbench/ddtbench_c
+examples/ddtbench/ddtbench_c_custom

@@ -7,6 +7,7 @@ CC=gcc
 CXX=g++ -std=c++20 -g
 
 MPICD_ROOT=$(HOME)/opt/mpicd/
+# MPICD_ROOT=$(HOME)/mpicd-install/
 
 HRT_ARCH=1
 
@@ -29,7 +30,7 @@ FCFLAGS+=${OPTIMIZATION} ${DEBUG} ${WARNINGS} -DTEST_TYPE=${TEST_TYPE} -I../src_
 CCFLAGS+=${OPTIMIZATION} ${DEBUG} ${WARNINGS} -DHRT_ARCH=${HRT_ARCH} -DTEST_TYPE=${TEST_TYPE}
 CCFLAGS+=-I$(MPICD_ROOT)/include
 
-LDFLAGS+=-L$(MPICD_ROOT)/lib -lmpi
+LDFLAGS+=-L$(MPICD_ROOT)/lib -lmpi -Wl,-rpath,$(MPICD_ROOT)/lib
 
 DDTBENCH_OBJS = \
 	ddtbench.o \

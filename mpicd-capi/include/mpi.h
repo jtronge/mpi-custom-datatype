@@ -2,6 +2,7 @@
 #define _MPI_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #if __cplusplus
 extern "C" {
