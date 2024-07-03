@@ -6,8 +6,6 @@ use crate::{Status, System};
 use crate::request::Request;
 use crate::datatype::{PackMethod, UnpackMethod};
 
-const BUFSIZE: usize = 8192;
-
 pub trait Message {
     /// Progress the message and return the status.
     unsafe fn progress(&mut self, system: &mut System) -> Status;
@@ -63,14 +61,13 @@ impl Message for PackSendMessage {
             ucp_worker_progress(system.worker);
             req.status()
         } else if self.offset < self.packed_buffer.len() {
-            // Pack the buffer in BUFSIZE units.
-            let remain = self.packed_buffer.len() - self.offset;
-            let dst_size = if BUFSIZE < remain { BUFSIZE } else { remain };
+            // Pack the buffer all at once.
+            let dst_size = self.packed_buffer.len();
             let dst = self.packed_buffer.as_mut_ptr().offset(self.offset as isize);
             let used = self.pack_method
                 .pack(self.offset, dst, dst_size)
                 .expect("failed to pack buffer");
-            assert!(used <= dst_size);
+            assert!(used == dst_size);
             self.offset += used;
 
             // Waiting on packing part.
