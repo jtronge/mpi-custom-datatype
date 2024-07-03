@@ -1,0 +1,13 @@
+AUTHORS
+-------
+
+The first version of DDTBench was developed in 2012 at the National Centre
+for Supercomputing Applications, University of Illinois in
+Urbana-Champaign. Later work was done with the support of ETH Zurich.
+
+main authors:
+Robert Gerstenberger <gerro@illinois.edu>
+Timo Schneider <timos@inf.ethz.ch>
+
+other authors:
+Torsten Hoefler <htor@inf.ethz.ch>
