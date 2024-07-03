@@ -50,7 +50,7 @@ static int pack_cb(
     mycount = count;
   }
 
-  double *dst = (double*) dst_v;
+  double *__restrict__ dst = (double*) dst_v;
 
   double *__restrict__ atag = info->atag;
   double *__restrict__ atype = info->atype;
@@ -84,7 +84,7 @@ static int unpack_cb(
 {
   MPI_Count pos = 0;
   field_info_t *info = (field_info_t*)state;
-  char *src = (char*) src_v;
+  double *__restrict__ src = (double*) src_v;
 
   MPI_Count mycount = src_size / (8*sizeof(double));
   if (count < mycount) {
