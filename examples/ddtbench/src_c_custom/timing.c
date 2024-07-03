@@ -187,7 +187,7 @@ void timing_print( int last ) {
 
 //! prints some progression information to stdout
   current_tests = current_tests + counter - 1;
-  printf("Finished %7.3f%% of all tests\n", (double) current_tests/max_tests*100);
+  //printf("Finished %7.3f%% of all tests\n", (double) current_tests/max_tests*100);
 }
 
 //! records the timing for the given epoch id
@@ -221,22 +221,20 @@ void timing_record( int id ) {
 
 //! opens a file handle, to where the timing values are written
 
-#if 0
 void timing_open_file( char* filename ) {
 
   char line[256];
-  int ier;
+  //int ier;
 
-  ier = MPI_File_open( MPI_COMM_SELF, filename, MPI_MODE_EXCL + MPI_MODE_CREATE + MPI_MODE_WRONLY, MPI_INFO_NULL, &filehandle_values );
+  //ier = MPI_File_open( MPI_COMM_SELF, filename, MPI_MODE_EXCL + MPI_MODE_CREATE + MPI_MODE_WRONLY, MPI_INFO_NULL, &filehandle_values );
 
   if ( ier != MPI_SUCCESS ) {
     printf("Error at open file %s for writing the timing values. The file probably already exists.\nWill now abort.\n", filename);
     MPI_Abort( MPI_COMM_WORLD, 1 );
   }
-  snprintf(line, 256, "%30s%30s%15s%20s%20s%20s%20s%20s%20s\n", "testname", "method", "bytes", "id", "time", "papi_evt1_type", "papi_evt1_val", "papi_evt2_type", "papi_evt2_val");
-  MPI_File_write(filehandle_values, line, strlen(line), MPI_CHAR, MPI_STATUS_IGNORE);
+  printf(line, 256, "%30s%30s%15s%20s%20s%20s%20s%20s%20s\n", "testname", "method", "bytes", "id", "time", "papi_evt1_type", "papi_evt1_val", "papi_evt2_type", "papi_evt2_val");
+  //MPI_File_write(filehandle_values, line, strlen(line), MPI_CHAR, MPI_STATUS_IGNORE);
 }
-#endif // 0
 
 #if TEST_TYPE > 1
 void init_papi() {

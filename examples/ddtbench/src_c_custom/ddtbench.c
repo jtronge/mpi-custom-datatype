@@ -69,9 +69,10 @@ int main( int argc, char **argv, char *envp[]) {
 
 //! some intro
   if ( myrank == 0 ) {
-    printf(" Welcome to our DDT benchmark suite\n\n");
-    printf(" outer loop parameter = %i\n", outer_loop);
-    printf(" inner loop parameter = %i\n\n", inner_loop);
+    //printf(" Welcome to our DDT benchmark suite\n\n");
+    //printf(" outer loop parameter = %i\n", outer_loop);
+    //printf(" inner loop parameter = %i\n\n", inner_loop);
+    timing_open_file( "" ); // prints the header
 //! open the filehandle for the output of the timing
 #if TEST_TYPE > 1
     init_papi();
