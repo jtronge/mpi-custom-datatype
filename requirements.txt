@@ -1,1 +1,4 @@
 matplotlib==3.8.4
+numpy
+pandas
+jupyterlab
