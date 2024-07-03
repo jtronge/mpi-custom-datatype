@@ -28,7 +28,7 @@ struct pack_info_t {
   size_t buf_size;
   int ie, is, je, js, ke, ks, number_2D, number_3D, number_4D, dim1, dim2, dim3;
   int pack_unpack; // 0: pack, 1: unpack
-  double* buffer;
+  float* buffer;
   float **array2Ds;
   float **array3Ds;
   float **array4Ds;
@@ -47,9 +47,9 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
   int dim1 = info->dim1;
   int dim2 = info->dim2;
   int dim3 = info->dim3;
-  double *buffer = info->buffer;
+  float *__restrict__ buffer = info->buffer;
   int ilen = ie-is+1;
-  size_t unit_pack_size = ilen*sizeof(double);
+  size_t unit_pack_size = ilen*sizeof(float);
   float **array2Ds = info->array2Ds;
   float **array3Ds = info->array3Ds;
   float **array4Ds = info->array4Ds;
@@ -196,7 +196,7 @@ static int query_cb(void *state, const void *buf, MPI_Count count, MPI_Count *pa
       elem_count += (ilen*jlen*klen);
     }
   }
-  *packed_size = sizeof(double) * elem_count * count;
+  *packed_size = sizeof(float) * elem_count * count;
   return MPI_SUCCESS;
 }
 
@@ -210,7 +210,7 @@ static int pack_cb(
   pack_info_t *info = (pack_info_t*)state;
   info->pack_unpack = 0;
   info->buf_size = dst_size;
-  info->buffer = (double*)dst;
+  info->buffer = (float*)dst;
   if (info->coro.next()) {
     *used = info->coro.getValue().value();
     return MPI_SUCCESS;
@@ -228,7 +228,7 @@ static int unpack_cb(
   pack_info_t *info = (pack_info_t*)state;
   info->pack_unpack = 1; // unpack
   info->buf_size = src_size;
-  info->buffer = (double*)src;
+  info->buffer = (float*)src;
   if (info->coro.next()) {
     info->coro.getValue().value();
     return MPI_SUCCESS;
