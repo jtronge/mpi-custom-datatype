@@ -13,7 +13,6 @@
 
 void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_Comm local_communicator) {
 
-#if 0
   double* array;
   int myrank;
   int base, typesize = sizeof(float), bytes, i;
@@ -28,7 +27,7 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
   utilities_fill_unique_array_1D_float( &array[0], DIM1, base );
 
   if ( myrank == 0 ) {
-    snprintf(&method[0], 50, "reference");
+    snprintf(&method[0], 50, "custom_reference");
 
     bytes = typesize * DIM1;
 
@@ -37,12 +36,12 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
 
   for( i=0 ; i<loop ; i++ ){
     if ( myrank == 0 ) {
-      MPI_Send( &array[0], DIM1, MPI_DOUBLE, 1, itag, local_communicator );
-      MPI_Recv( &array[0], DIM1, MPI_DOUBLE, 1, itag, local_communicator, &status );
+      MPI_Send( &array[0], DIM1*sizeof(float), MPI_BYTE, 1, itag, local_communicator );
+      MPI_Recv( &array[0], DIM1*sizeof(float), MPI_BYTE, 1, itag, local_communicator, &status );
       timing_record(3);
     } else {
-      MPI_Recv( &array[0], DIM1, MPI_DOUBLE, 0, itag, local_communicator, &status );
-      MPI_Send( &array[0], DIM1, MPI_DOUBLE, 0, itag, local_communicator );
+      MPI_Recv( &array[0], DIM1*sizeof(float), MPI_BYTE, 0, itag, local_communicator, &status );
+      MPI_Send( &array[0], DIM1*sizeof(float), MPI_BYTE, 0, itag, local_communicator );
     }
   }
 
@@ -51,7 +50,6 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
   }
 
   free(array);
-#endif // 0
 }
 
 #if 0
