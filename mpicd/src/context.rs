@@ -174,8 +174,6 @@ impl Communicator for Context {
                         complete += 1;
                     }
                 }
-
-                ucp_worker_progress(handle.system.worker);
             }
         }
         Ok(statuses)
