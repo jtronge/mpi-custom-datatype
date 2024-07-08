@@ -82,7 +82,7 @@ static coro::generator<MPI_Count> pack_unpack_coro(PackInfoT *info)
           size -= (inner_ub - l)*sizeof(double);
         }
         assert(size >= 0);
-        if (size < UNIT_PACK_SIZE*sizeof(double)) {
+        if (size < std::min(UNIT_PACK_SIZE, inner_ub - info->inner_lb)*sizeof(double)) {
           co_yield info->buf_size - size; // insufficient space for another round
           /* we're back, reset state */
           size = info->buf_size;
@@ -111,7 +111,7 @@ static coro::generator<MPI_Count> pack_unpack_coro(PackInfoT *info)
           size -= (inner_ub - l)*sizeof(double);
         }
         assert(size >= 0);
-        if (size < UNIT_PACK_SIZE*sizeof(double)) {
+        if (size < std::min(UNIT_PACK_SIZE, inner_ub - info->inner_lb)*sizeof(double)) {
           co_yield info->buf_size - size; // insufficient space for another round
           /* we're back, reset state */
           size = info->buf_size;
