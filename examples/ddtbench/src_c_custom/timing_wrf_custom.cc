@@ -440,3 +440,290 @@ void timing_wrf_custom ( int number_2D, int number_3D, int number_4D, int ims, i
   free( array3Ds );
   free( array4Ds );
 }
+
+
+
+
+void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
+  int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+  float** array2Ds;
+  float** array3Ds;
+  float** array4Ds;
+
+  float* buffer;
+
+  int counter, i, j, bytes, typesize = sizeof(float), base;
+  int k, l, m, n, o;
+  int element_number;
+  int myrank;
+  int dim1, dim2, dim3;
+  int sub_dim1, sub_dim2, sub_dim3;
+  MPI_Status status;
+
+  char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+  *correct_flag = 0;
+  *ptypesize = 0;
+//  typesize = filehandle_debug
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+//! some conversion from fortran to c
+  dim1 = ime-ims+1;
+  dim2 = kme-kms+1;
+  dim3 = jme-jms+1;
+
+  sub_dim1 = ie-is+1;
+  sub_dim2 = ke-ks+1;
+  sub_dim3 = je-js+1;
+
+  is = is - ims;
+  ks = ks - kms;
+  js = js - jms;
+
+  ie = ie - ims;
+  ke = ke - kms;
+  je = je - jms;
+
+  param_first_scalar--;
+
+//! ================= initialize the arrays =================
+
+//! allocate all needed arrays first
+
+  array2Ds = (float**)malloc( number_2D * sizeof(float*) );
+  array3Ds = (float**)malloc( number_3D * sizeof(float*) );
+  array4Ds = (float**)malloc( number_4D * sizeof(float*) );
+
+//! allocate and initialize the arrays
+//! compute the number of elements in the arrays
+  counter = ( number_2D + number_3D * dim2 ) * dim1 * dim3 ;
+  for( m=0 ; m<number_4D ; m++ ) {
+    counter = counter + limit_4D_arrays[m] * dim1 * dim2 * dim3;
+  }
+  base = myrank * counter + 1;
+
+  for( m=0 ; m<number_2D ; m++ ) {
+    array2Ds[m] = (float*)malloc( dim1 * dim3 * sizeof(float) );
+    utilities_fill_unique_array_2D_float( array2Ds[m], dim1, dim3, base );
+    base = base + dim1 * dim3;
+  }
+
+  for( m=0 ; m<number_3D ; m++ ) {
+    array3Ds[m] = (float*)malloc( dim1 * dim2 * dim3 * sizeof(float) );
+    utilities_fill_unique_array_3D_float( array3Ds[m], dim1, dim2, dim3, base );
+    base = base + dim1 * dim2 * dim3;
+  }
+
+  for( m=0 ; m<number_4D ; m++ ) {
+    array4Ds[m] = (float*)malloc( dim1 * dim2 * dim3 * limit_4D_arrays[m] * sizeof(float) );
+    utilities_fill_unique_array_4D_float( array4Ds[m], dim1, dim2, dim3, limit_4D_arrays[m], base );
+    base = base + limit_4D_arrays[m] * dim1 * dim2  * dim3;
+  }
+
+  if ( myrank == 0 ) {
+    snprintf( &method[0], 50, "mpicd_manual" );
+
+//! compute the number of bytes to be communicated
+//! first compute the number of elements in the subarrays
+    counter = number_2D * sub_dim1 * sub_dim3 + number_3D * sub_dim1 * sub_dim2 * sub_dim3;
+    for( m=0 ; m<number_4D ; m++ ) {
+      if (limit_4D_arrays[m] > param_first_scalar) {
+        counter = counter + (limit_4D_arrays[m]-param_first_scalar) * sub_dim1 * sub_dim2 * sub_dim3;
+      }
+    }
+    bytes = counter * typesize;
+
+    timing_init( testname, method, bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+
+//! compute the number of elements in the subarray
+    element_number = number_2D * sub_dim1 * sub_dim3 + number_3D * sub_dim1 * sub_dim2 * sub_dim3;
+    for( m=0 ; m<number_4D ; m++ ) {
+      if (limit_4D_arrays[m] > param_first_scalar) {
+        element_number = element_number + (limit_4D_arrays[m]-param_first_scalar) * sub_dim1 * sub_dim2 * sub_dim3;
+      }
+    }
+
+    buffer = (float*)malloc( element_number * sizeof(float) );
+
+    if ( myrank == 0 ) {
+      timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++ ) {
+
+//! =============== ping pong communication =================
+
+//! send the data from rank 0 to rank 1
+      if ( myrank == 0 ) {
+//! ==================== pack the data ======================
+        counter = 0;
+        for( m=0 ; m<number_2D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=is ; l<=ie ; l++ ) {
+              buffer[counter++] = *(array2Ds[m]+idx2D(l,k,dim1));
+            }
+          }
+        }
+        for( m=0 ; m<number_3D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=ks ; l<=ke ; l++ ) {
+              for( n=is ; n<=ie ; n++ ) {
+                buffer[counter++] = *(array3Ds[m]+idx3D(n,l,k,dim1,dim2));
+              }
+            }
+          }
+        }
+        for( m=0 ; m<number_4D ; m++ ) {
+          for( k=param_first_scalar ; k<limit_4D_arrays[m] ; k++) {
+            for( l=js ; l<=je ; l++ ) {
+              for( n=ks ; n<=ke ; n++ ) {
+                for( o=is ; o<=ie ; o++ ) {
+                  buffer[counter++] = *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3));
+                }
+              }
+            }
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], element_number*sizeof(float), MPI_BYTE, 1, itag, local_communicator );
+//! receive the data back from rank 1
+        MPI_Recv( &buffer[0], element_number*sizeof(float), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+//! =================== unpack the data =====================
+        counter = 0;
+        for( m=0 ; m<number_2D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=is ; l<=ie ; l++ ) {
+              *(array2Ds[m]+idx2D(l,k,dim1)) = buffer[counter++];
+            }
+          }
+        }
+        for( m=0 ; m<number_3D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=ks ; l<=ke ; l++ ) {
+              for( n=is ; n<=ie ; n++ ) {
+                *(array3Ds[m]+idx3D(n,l,k,dim1,dim2)) = buffer[counter++];
+              }
+            }
+          }
+        }
+        for( m=0 ; m<number_4D ; m++ ) {
+          for( k=param_first_scalar ; k<limit_4D_arrays[m] ; k++) {
+            for( l=js ; l<=je ; l++ ) {
+              for( n=ks ; n<=ke ; n++ ) {
+                for( o=is ; o<=ie ; o++ ) {
+                  *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3)) = buffer[counter++];
+                }
+              }
+            }
+          }
+        }
+        timing_record(4);
+//! now for rank 1
+      } else {
+//! receive from rank 0
+        MPI_Recv( &buffer[0], element_number*sizeof(float), MPI_BYTE, 0, itag, local_communicator, &status );
+//! unpack the data
+        counter = 0;
+        for( m=0 ; m<number_2D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=is ; l<=ie ; l++ ) {
+              *(array2Ds[m]+idx2D(l,k,dim1)) = buffer[counter++];
+            }
+          }
+        }
+        for( m=0 ; m<number_3D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=ks ; l<=ke ; l++ ) {
+              for( n=is ; n<=ie ; n++ ) {
+                *(array3Ds[m]+idx3D(n,l,k,dim1,dim2)) = buffer[counter++];
+              }
+            }
+          }
+        }
+        for( m=0 ; m<number_4D ; m++ ) {
+          for( k=param_first_scalar ; k<limit_4D_arrays[m] ; k++) {
+            for( l=js ; l<=je ; l++ ) {
+              for( n=ks ; n<=ke ; n++ ) {
+                for( o=is ; o<=ie ; o++ ) {
+                  *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3)) = buffer[counter++];
+                }
+              }
+            }
+          }
+        }
+//! pack the data
+        counter = 0;
+        for( m=0 ; m<number_2D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=is ; l<=ie ; l++ ) {
+              buffer[counter++] = *(array2Ds[m]+idx2D(l,k,dim1));
+            }
+          }
+        }
+        for( m=0 ; m<number_3D ; m++ ) {
+          for( k=js ; k<=je ; k++ ) {
+            for( l=ks ; l<=ke ; l++ ) {
+              for( n=is ; n<=ie ; n++ ) {
+                buffer[counter++] = *(array3Ds[m]+idx3D(n,l,k,dim1,dim2));
+              }
+            }
+          }
+        }
+        for( m=0 ; m<number_4D ; m++ ) {
+          for( k=param_first_scalar ; k<limit_4D_arrays[m] ; k++) {
+            for( l=js ; l<=je ; l++ ) {
+              for( n=ks ; n<=ke ; n++ ) {
+                for( o=is ; o<=ie ; o++ ) {
+                  buffer[counter++] = *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3));
+                }
+              }
+            }
+          }
+        }
+
+//!> send to rank 0
+        MPI_Send( buffer, element_number*sizeof(float), MPI_BYTE, 0, itag, local_communicator );
+      } //! of myrank .EQ. 0?
+
+    } //! inner_loop
+
+//! ======================= clean up ========================
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+
+  } //! outer_loop
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+//! ======================= clean up ========================
+
+  for( m=0 ; m<number_2D ; m++ ) {
+    free( array2Ds[m] );
+  }
+
+  for( m=0 ; m<number_3D ; m++ ) {
+    free( array3Ds[m] );
+  }
+
+  for( m=0 ; m<number_4D ; m++ ) {
+    free( array4Ds[m] );
+  }
+
+  free( array2Ds );
+  free( array3Ds );
+  free( array4Ds );
+}

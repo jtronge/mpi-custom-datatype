@@ -155,3 +155,127 @@ void timing_milc_su3_zdown_custom( int DIM2, int DIM3, int DIM4, int DIM5, int o
 
   free(array);
 }
+
+
+
+void timing_milc_su3_zdown_manual( int DIM2, int DIM3, int DIM4, int DIM5, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+  float* array;
+  float* buffer;
+
+  int myrank;
+  int i, j, k, l, m, n, o;
+  int base, bytes, pos, dsize;
+
+  int typesize = sizeof(float);
+  MPI_Status status;
+
+  char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+  *correct_flag = 0;
+  *ptypesize = 0;
+//  typesize = filehandle_debug;
+
+  array = (float*)malloc( 2 * 3 * DIM2 * DIM3 * DIM4 * DIM5 * sizeof(float) );
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+  base = myrank * 3 * DIM2 * DIM3 * DIM4 * DIM5 * 2 + 1;
+  utilities_fill_unique_array_5D_float( &array[0], 6, DIM2, DIM3, DIM4, DIM5, base );
+
+  if ( myrank == 0 ) {
+    snprintf( &method[0], 50, "mpicd_manual" );
+
+    bytes = 2 * DIM5 * DIM2*DIM3/2 * 3 * 2 * typesize;
+
+    timing_init( testname, &method[0], bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+    dsize = 2 * DIM5 * DIM2*DIM3/2 * 3 * 2;
+    buffer = (float*)malloc(dsize * sizeof(float) );
+
+//! modelling the zdown direction
+    if ( myrank == 0 ) {
+      timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++) {
+
+      if ( myrank == 0 ) {
+        pos = 0;
+        for( k=0 ; k<DIM5 ; k++ ) {
+          for( l=0 ; l<DIM4 ; l+=DIM4/2 ) {
+            for( m=0 ; m<DIM3/2 ; m++ ) {
+              for( n=0; n<DIM2 ; n++ ) {
+                for( o=0 ; o<6 ; o++ ) {
+                  buffer[pos++] = array[idx5D(o,n,m,l,k,6,DIM2,DIM3,DIM4)];
+                }
+              }
+            }
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], dsize*sizeof(float), MPI_BYTE, 1, itag, local_communicator );
+        MPI_Recv( &buffer[0], dsize*sizeof(float), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+        pos = 0;
+        for( k=0 ; k<DIM5 ; k++ ) {
+          for( l=0 ; l<DIM4 ; l+=DIM4/2 ) {
+            for( m=0 ; m<DIM3/2 ; m++ ) {
+              for( n=0; n<DIM2 ; n++ ) {
+                for( o=0 ; o<6 ; o++ ) {
+                  array[idx5D(o,n,m,l,k,6,DIM2,DIM3,DIM4)] = buffer[pos++];
+                }
+              }
+            }
+          }
+        }
+        timing_record(4);
+      } else {
+        MPI_Recv( &buffer[0], dsize*sizeof(float), MPI_BYTE, 0, itag, local_communicator, &status );
+        pos = 0;
+        for( k=0 ; k<DIM5 ; k++ ) {
+          for( l=0 ; l<DIM4 ; l+=DIM4/2 ) {
+            for( m=0 ; m<DIM3/2 ; m++ ) {
+              for( n=0; n<DIM2 ; n++ ) {
+                for( o=0 ; o<6 ; o++ ) {
+                  array[idx5D(o,n,m,l,k,6,DIM2,DIM3,DIM4)] = buffer[pos++];
+                }
+              }
+            }
+          }
+        }
+        pos = 0;
+        for( k=0 ; k<DIM5 ; k++ ) {
+          for( l=0 ; l<DIM4 ; l+=DIM4/2 ) {
+            for( m=0 ; m<DIM3/2 ; m++ ) {
+              for( n=0; n<DIM2 ; n++ ) {
+                for( o=0 ; o<6 ; o++ ) {
+                  buffer[pos++] = array[idx5D(o,n,m,l,k,6,DIM2,DIM3,DIM4)];
+                }
+              }
+            }
+          }
+        }
+        MPI_Send( &buffer[0], dsize*sizeof(float), MPI_BYTE, 0, itag, local_communicator );
+      }
+
+    } //! inner loop
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+
+  } //! outer loop
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+  free(array);
+}

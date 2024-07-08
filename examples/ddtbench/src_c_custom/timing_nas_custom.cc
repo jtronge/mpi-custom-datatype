@@ -585,3 +585,492 @@ void timing_nas_mg_z_custom( int DIM1, int DIM2, int DIM3, int outer_loop, int i
 
   free(array);
 }
+
+
+
+
+
+
+void timing_nas_lu_y_manual( int DIM2, int DIM3, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+  int DIM1 = 5;
+
+  double* array;
+  double* buffer;
+
+  int myrank;
+  int i, j, k, l,  base, bytes, typesize = sizeof(double);
+  MPI_Status status;
+
+  char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+  *correct_flag = 0;
+  *ptypesize = 0;
+//  typesize = filehandle_debug
+
+  array =(double*)malloc( DIM1*(DIM2+2)*(DIM3+2) * sizeof(double) );
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+  base = myrank * DIM1 * (DIM2+2) * (DIM3+2) + 1;
+  utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2+2, DIM3+2, base );
+
+  if ( myrank == 0 ) {
+    snprintf(method, 50, "mpicd_manual");
+
+    bytes = 5 * DIM3 * typesize;
+
+    timing_init( testname, &method[0], bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+
+    buffer =(double*)malloc( DIM1 * DIM3 * sizeof(double));
+
+    if ( myrank == 0 ) {
+       timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++ ) {
+      if ( myrank == 0 ) {
+//! pack the data
+        base = 0;
+        for( k=1 ; k<DIM3 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,DIM2,k,DIM1,DIM2+2)];
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], DIM1*DIM3*sizeof(double), MPI_BYTE, 1, itag, local_communicator );
+        MPI_Recv( &buffer[0], DIM1*DIM3*sizeof(double), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+//! unpack the data
+        base = 0;
+        for( k=1 ; k<DIM3 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            array[idx3D(l,0,k,DIM1,DIM2+2)] = buffer[base++];
+          }
+        }
+        timing_record(4);
+      } else {
+        MPI_Recv( &buffer[0], DIM1*DIM3*sizeof(double), MPI_BYTE, 0, itag, local_communicator, &status );
+//! unpack the data
+        base = 0;
+        for( k=1 ; k<DIM3 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            array[idx3D(l,0,k,DIM1,DIM2+2)] = buffer[base++];
+          }
+        }
+//! pack the data
+        base = 0;
+        for( k=1 ; k<DIM3 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,DIM2,k,DIM1,DIM2+2)];
+          }
+        }
+        MPI_Send( &buffer[0], DIM1*DIM3*sizeof(double), MPI_BYTE, 0, itag, local_communicator );
+      }
+    } //! inner loop
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+  }
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+  free(array);
+}
+
+
+void timing_nas_lu_x_manual( int DIM2, int DIM3, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+  int DIM1 = 5;
+
+  double* array;
+  double* buffer;
+
+  int myrank;
+  int i, j, k, l,  base, bytes, typesize = sizeof(double);
+  MPI_Status status;
+
+  char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+  *correct_flag = 0;
+  *ptypesize = 0;
+//  typesize = filehandle_debug;
+
+  array =(double*)malloc( DIM1 * (DIM2+2) * (DIM3+2) * sizeof(double));
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+  base = myrank * DIM1 * (DIM2+2) * (DIM3+2) + 1;
+
+  utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2+2, DIM3+2, base );
+
+  if ( myrank == 0 ) {
+    snprintf(method, 50, "mpicd_manual");
+
+    bytes = DIM1 * DIM2 * typesize;
+
+    timing_init( testname, &method[0], bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+
+    buffer =(double*)malloc(DIM1 * DIM2 * sizeof(double));
+
+    if ( myrank == 0 ) {
+      timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++ ) {
+      if ( myrank == 0 ) {
+//! pack the data
+        base = 0;
+        for( k=1 ; k<DIM2+1 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,k,DIM3,DIM1,DIM2+2)];
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], DIM1*DIM2*sizeof(double), MPI_BYTE, 1, itag, local_communicator );
+        MPI_Recv( &buffer[0], DIM1*DIM2*sizeof(double), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+//! unpack the data
+        base = 0;
+        for( k=1 ; k<DIM2+1 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            array[idx3D(l,k,0,DIM1,DIM2+2)] = buffer[base++];
+          }
+        }
+        timing_record(4);
+      } else {
+        MPI_Recv( &buffer[0], DIM1*DIM2*sizeof(double), MPI_BYTE, 0, itag, local_communicator, &status );
+//! unpack the data
+        base = 0;
+        for( k=1 ; k<DIM2+1 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            array[idx3D(l,k,0,DIM1,DIM2+2)] = buffer[base++];
+          }
+        }
+//! pack the data
+        base = 0;
+        for( k=1 ; k<DIM2+1 ; k++ ) {
+          for( l=0 ; l<DIM1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,k,DIM3,DIM1,DIM2+2)];
+          }
+        }
+        MPI_Send( &buffer[0], DIM1*DIM2*sizeof(double), MPI_BYTE, 0, itag, local_communicator );
+      }
+    } //! inner loop
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+
+  } //! outer loop
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+  free(array);
+}
+
+
+void timing_nas_mg_x_manual( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+  double* array;
+  double* buffer;
+
+  int myrank;
+  int base, i, j, k, l, typesize = sizeof(double), bytes, psize;
+  MPI_Status status;
+
+  char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+  *correct_flag = 0;
+  *ptypesize = 0;
+//  typesize = filehandle_debug
+
+  array =(double*)malloc( DIM1 * DIM2 * DIM3 * sizeof(double));
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+  base = myrank * DIM1 * DIM2 * DIM3 + 1;
+  utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2, DIM3, base);
+
+  if ( myrank == 0 ) {
+    snprintf(method, 50, "mpicd_manual");
+
+    bytes = (DIM2-2)*(DIM3-2) * typesize;
+
+    timing_init( testname, &method[0], bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+
+    psize = (DIM2-2)*(DIM3-2);
+    buffer =(double*)malloc( psize * sizeof(double) );
+
+    if ( myrank == 0 ) {
+      timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++ ) {
+
+      if ( myrank == 0 ) {
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM2-1 ; l++ ) {
+            buffer[base++] = array[idx3D(DIM1-2,l,k,DIM1,DIM2)];
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], psize*sizeof(double), MPI_BYTE, 1, itag, local_communicator );
+        MPI_Recv( &buffer[0], psize*sizeof(double), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM2-1 ; l++ ) {
+            array[idx3D(DIM1-1,l,k,DIM1,DIM2)] = buffer[base++];
+          }
+        }
+        timing_record(4);
+      } else {
+        MPI_Recv( &buffer[0], psize*sizeof(double), MPI_BYTE, 0, itag, local_communicator, &status );
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM2-1 ; l++ ) {
+            array[idx3D(DIM1-1,l,k,DIM1,DIM2)] = buffer[base++];
+          }
+        }
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM2-1 ; l++ ) {
+            buffer[base++] = array[idx3D(DIM1-2,l,k,DIM1,DIM2)];
+          }
+        }
+        MPI_Send( &buffer[0], psize*sizeof(double), MPI_BYTE, 0, itag, local_communicator );
+      }
+    } //! inner loop
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+
+  } //! outer loop
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+  free(array);
+}
+
+
+void timing_nas_mg_y_manual( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+ double* array;
+ double* buffer;
+
+ int myrank;
+ int base, i, j, k, l, typesize = sizeof(double), bytes, psize;
+  MPI_Status status;
+
+ char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+ *correct_flag = 0;
+ *ptypesize = 0;
+// typesize = filehandle_debug
+
+  array =(double*)malloc( DIM1 * DIM2 * DIM3 * sizeof(double) );
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+  base = myrank * DIM1 * DIM2 * DIM3 + 1;
+  utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2, DIM3, base);
+
+  if ( myrank == 0 ) {
+    snprintf(method, 50, "mpicd_manual");
+
+    bytes = (DIM1-2)*(DIM3-2) * typesize;
+
+    timing_init( testname, method, bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+
+    psize = (DIM1-2)*(DIM3-2);
+    buffer =(double*)malloc( psize * sizeof(double) );
+
+    if ( myrank == 0 ) {
+      timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++ ) {
+
+      if ( myrank == 0 ) {
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,DIM2-2,k,DIM1,DIM2)];
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], psize*sizeof(double), MPI_BYTE, 1, itag, local_communicator );
+        MPI_Recv( &buffer[0], psize*sizeof(double), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            array[idx3D(l,DIM2-1,k,DIM1,DIM2)] = buffer[base++];
+          }
+        }
+        timing_record(4);
+      } else {
+        MPI_Recv( &buffer[0], psize*sizeof(double), MPI_BYTE, 0, itag, local_communicator, &status );
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            array[idx3D(l,DIM2-1,k,DIM1,DIM2)] = buffer[base++];
+          }
+        }
+        base = 0;
+        for( k=1 ; k<DIM3-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,DIM2-2,k,DIM1,DIM2)];
+          }
+        }
+        MPI_Send( &buffer[0], psize*sizeof(double), MPI_BYTE, 0, itag, local_communicator );
+      }
+
+    } //! inner loop
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+
+  } //! outer loop
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+  free(array);
+}
+
+
+void timing_nas_mg_z_manual( int DIM1, int DIM2, int DIM3, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_Comm local_communicator ) {
+
+  double* array;
+  double* buffer;
+
+  int myrank;
+  int base, i, j, k, l, typesize = sizeof(double), bytes, psize;
+  MPI_Status status;
+
+  char method[50];
+
+//! just some statements to prevent compiler warnings of unused variables
+//! those parameter are included for future features
+  *correct_flag = 0;
+  *ptypesize = 0;
+//typesize = filehandle_debug
+
+  array =(double*)malloc( DIM1 * DIM2 * DIM3 * sizeof(double) );
+
+  MPI_Comm_rank( local_communicator, &myrank );
+
+  base = myrank * DIM1 * DIM2 * DIM3 + 1;
+  utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2, DIM3, base );
+
+  if ( myrank == 0 ) {
+    snprintf( method, 50, "mpicd_manual" );
+
+    bytes = (DIM1-2) * (DIM2-2) * typesize;
+
+    timing_init( testname, &method[0], bytes );
+  }
+
+  for( i=0 ; i<outer_loop ; i++ ) {
+
+    psize = (DIM1-2) * (DIM2-2);
+    buffer =(double*)malloc( psize * sizeof(double) );
+
+    if ( myrank == 0 ) {
+      timing_record(1);
+    }
+
+    for( j=0 ; j<inner_loop ; j++ ) {
+
+      if ( myrank == 0 ) {
+        base = 0;
+        for( k=1 ; k<DIM2-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,k,1,DIM1,DIM2)];
+          }
+        }
+        timing_record(2);
+        MPI_Send( &buffer[0], psize*sizeof(double), MPI_BYTE, 1, itag, local_communicator );
+        MPI_Recv( &buffer[0], psize*sizeof(double), MPI_BYTE, 1, itag, local_communicator, &status );
+        timing_record(3);
+        base = 0;
+        for( k=1 ; k<DIM2-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            array[idx3D(l,k,0,DIM1,DIM2)] = buffer[base++];
+          }
+        }
+        timing_record(4);
+      } else {
+        MPI_Recv( &buffer[0], psize*sizeof(double), MPI_BYTE, 0, itag, local_communicator, &status );
+        base = 0;
+        for( k=1 ; k<DIM2-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            array[idx3D(l,k,0,DIM1,DIM2)] = buffer[base++];
+          }
+        }
+        base = 0;
+        for( k=1 ; k<DIM2-1 ; k++ ) {
+          for( l=1 ; l<DIM1-1 ; l++ ) {
+            buffer[base++] = array[idx3D(l,k,1,DIM1,DIM2)];
+          }
+        }
+        MPI_Send( &buffer[0], psize*sizeof(double), MPI_BYTE, 0, itag, local_communicator );
+      }
+
+    } //! inner loop
+
+    free( buffer );
+
+    if ( myrank == 0 ) {
+      timing_record(5);
+    }
+
+  } //! outer loop
+
+  if ( myrank == 0 ) {
+    timing_print( 1 );
+  }
+
+  free(array);
+}
