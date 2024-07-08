@@ -212,7 +212,6 @@ void timing_record( int id ) {
 
 void timing_open_file( char* filename ) {
 
-#if 0
   char line[256];
   int ier;
 
@@ -222,9 +221,8 @@ void timing_open_file( char* filename ) {
     printf("Error at open file %s for writing the timing values. The file probably already exists.\nWill now abort.\n", filename);
     MPI_Abort( MPI_COMM_WORLD, 1 );
   }
-#endif // 0
-  printf(256, "%30s%30s%15s%20s%20s%20s%20s%20s%20s\n", "testname", "method", "bytes", "id", "time", "papi_evt1_type", "papi_evt1_val", "papi_evt2_type", "papi_evt2_val");
-  //MPI_File_write(filehandle_values, line, strlen(line), MPI_CHAR, MPI_STATUS_IGNORE);
+  snprintf(line, 256, "%30s%30s%15s%20s%20s%20s%20s%20s%20s\n", "testname", "method", "bytes", "id", "time", "papi_evt1_type", "papi_evt1_val", "papi_evt2_type", "papi_evt2_val");
+  MPI_File_write(filehandle_values, line, strlen(line), MPI_CHAR, MPI_STATUS_IGNORE);
 }
 
 #if TEST_TYPE > 1

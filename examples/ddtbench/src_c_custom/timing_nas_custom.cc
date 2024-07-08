@@ -7,6 +7,7 @@
 #include "mpi.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 
 #include "ddtbench.h"
 #include "generator.h"
