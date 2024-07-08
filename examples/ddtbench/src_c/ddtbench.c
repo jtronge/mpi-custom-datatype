@@ -83,9 +83,11 @@ int main( int argc, char **argv, char *envp[]) {
 
 //! some intro
   if ( myrank == 0 ) {
+#if 0
     printf(" Welcome to our DDT benchmark suite\n\n");
     printf(" outer loop parameter = %i\n", outer_loop);
     printf(" inner loop parameter = %i\n\n", inner_loop);
+#endif // 0
 //! open the filehandle for the output of the timing
     snprintf(filename,50,"ddtbench.out");
     timing_open_file( &filename[0] );

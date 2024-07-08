@@ -59,9 +59,12 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
     /* pack 2D */
     for(int m = 0; m<info->number_2D ; m++) {
       for(int k=js ; k<=je ; k++) {
-        for(int l=is ; l<=ie ; l++) {
-          buffer[counter++] = *(array2Ds[m]+idx2D(l,k,dim1));
-        }
+//        for(int l=is ; l<=ie ; l++) {
+//          buffer[counter++] = *(array2Ds[m]+idx2D(l,k,dim1));
+//        }
+        int c = ie-is+1;
+        memcpy(&buffer[counter], array2Ds[m]+idx2D(is,k,dim1), c);
+        counter += c;
         size -= unit_pack_size;
         assert(size >= 0);
         if (size < unit_pack_size) {
@@ -76,9 +79,13 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
     for(int m=0 ; m<info->number_3D ; m++ ) {
       for(int k=js ; k<=je ; k++ ) {
         for(int l=ks ; l<=ke ; l++ ) {
-          for(int n=is ; n<=ie ; n++ ) {
-            buffer[counter++] = *(array3Ds[m]+idx3D(n,l,k,dim1,dim2));
-          }
+//          for(int n=is ; n<=ie ; n++ ) {
+//            buffer[counter++] = *(array3Ds[m]+idx3D(n,l,k,dim1,dim2));
+//          }
+          int c = ie-is+1;
+          memcpy(&buffer[counter], (array3Ds[m]+idx3D(is,l,k,dim1,dim2)), c);
+          counter += c;
+
           size -= unit_pack_size;
           assert(size >= 0);
           if (size < unit_pack_size) {
@@ -95,9 +102,13 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
       for(int k=info->param_first_scalar; k<info->limit_4D_arrays[m]; k++) {
         for(int l=js; l<=je; l++) {
           for(int n=ks ; n<=ke; n++) {
-            for(int o=is; o<=ie; o++) {
-              buffer[counter++] = *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3));
-            }
+            //for(int o=is; o<=ie; o++) {
+            //  buffer[counter++] = *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3));
+            //}
+            int c = ie-is+1;
+            memcpy(&buffer[counter], (array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), c);
+            counter += c;
+
             size -= unit_pack_size;
             assert(size >= 0);
             if (size < unit_pack_size) {
@@ -115,9 +126,13 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
     /* unpack */
     for(int m=0 ; m<info->number_2D ; m++) {
       for(int k=js ; k<=je ; k++) {
-        for(int l=is ; l<=ie ; l++) {
-          *(array2Ds[m]+idx2D(l,k,dim1)) = buffer[counter++];
-        }
+//        for(int l=is ; l<=ie ; l++) {
+//          *(array2Ds[m]+idx2D(l,k,dim1)) = buffer[counter++];
+//        }
+        int c = ie-is+1;
+        memcpy(array2Ds[m]+idx2D(is,k,dim1), &buffer[counter], c);
+        counter += c;
+
         size -= unit_pack_size;
         assert(size >= 0);
         if (size < unit_pack_size) {
@@ -132,9 +147,14 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
     for(int m=0 ; m<info->number_3D ; m++ ) {
       for(int k=js ; k<=je ; k++ ) {
         for(int l=ks ; l<=ke ; l++ ) {
-          for(int n=is ; n<=ie ; n++ ) {
-            *(array3Ds[m]+idx3D(n,l,k,dim1,dim2)) = buffer[counter++];
-          }
+//          for(int n=is ; n<=ie ; n++ ) {
+//            *(array3Ds[m]+idx3D(n,l,k,dim1,dim2)) = buffer[counter++];
+//          }
+          int c = ie-is+1;
+          memcpy((array3Ds[m]+idx3D(is,l,k,dim1,dim2)), &buffer[counter], c);
+          counter += c;
+
+
           size -= unit_pack_size;
           assert(size >= 0);
           if (size < unit_pack_size) {
@@ -151,9 +171,12 @@ static coro::generator<MPI_Count> pack_unpack_coro(pack_info_t *info)
       for(int k=info->param_first_scalar ; k<info->limit_4D_arrays[m] ; k++) {
         for(int l=js ; l<=je ; l++ ) {
           for(int n=ks ; n<=ke ; n++ ) {
-            for(int o=is ; o<=ie ; o++ ) {
-              *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3)) = buffer[counter++];
-            }
+//            for(int o=is ; o<=ie ; o++ ) {
+//              *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3)) = buffer[counter++];
+//            }
+            int c = ie-is+1;
+            memcpy((array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), &buffer[counter], c);
+            counter += c;
             size -= unit_pack_size;
             assert(size >= 0);
             if (size < unit_pack_size) {

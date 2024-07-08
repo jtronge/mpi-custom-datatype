@@ -121,7 +121,7 @@ void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int 
 //! the bytes a real does
    nelements = DIM2*DIM3/2*DIM5*2*3*2;
    loops = outer_loop * inner_loop;
-   //timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
+   timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
 
 void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
@@ -147,7 +147,7 @@ void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop
 //! the bytes a real does
   nelements = 5 * DIM2 * 2;
   loops = outer_loop * inner_loop;
-  //timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
+  timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
 
 void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
@@ -173,7 +173,7 @@ void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop
 //! the bytes a real does
   nelements = 5 * DIM3 * 2;
   loops = outer_loop * inner_loop;
-  //timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
+  timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 }
 
 void wrapper_timing_nas_lu( int DIM2, int DIM3, int outer_loop, int inner_loop, char* ptestname, MPI_Comm local_communicator ) {
@@ -207,7 +207,7 @@ void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 //! the bytes a real does
   nelements = (DIM2-2)*(DIM3-2)*2;
   loops = outer_loop * inner_loop;
-  //timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
+  timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 
 }
 
@@ -234,7 +234,7 @@ void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 //! the bytes a real does
     nelements = (DIM1-2) * (DIM3-2) * 2;
     loops = outer_loop * inner_loop;
-    //timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
+    timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 
 }
 
@@ -262,7 +262,7 @@ void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
   nelements = (DIM1-2) * (DIM2-2) * 2;
   loops = outer_loop * inner_loop;
-  //timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
+  timing_basic_ping_pong_nelements( nelements, loops, &testname[0], local_communicator );
 
 }
 
@@ -377,7 +377,7 @@ void wrapper_timing_lammps_full( int DIM1, int icount, int outer_loop, int inner
 //! the bytes a real does
   nelements = icount * 8 * 2;
   loops = outer_loop * inner_loop;
-  //timing_basic_ping_pong_nelements( nelements, loops, testname, local_communicator );
+  timing_basic_ping_pong_nelements( nelements, loops, testname, local_communicator );
 
   free(list);
 }
