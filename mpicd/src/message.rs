@@ -98,14 +98,26 @@ impl Message for PackSendMessage {
             let count = iovdata.len();
             let _ = self.iovdata.insert(iovdata);
 
-            // Submit the request with both packed and memory region data.
-            let _ = self.req.insert(Request::send_nb(
-                system.endpoints[self.dest],
-                self.iovdata.as_ref().expect("missing iovec data").as_ptr() as *const _,
-                count,
-                rust_ucp_dt_make_iov(),
-                self.tag,
-            ));
+            if count == 1 {
+                // Submit as contiguous.
+                let iovdata = self.iovdata.as_ref().expect("missing iovec data");
+                let _ = self.req.insert(Request::send_nb(
+                    system.endpoints[self.dest],
+                    iovdata[0].buffer as *mut _,
+                    iovdata[0].length,
+                    rust_ucp_dt_make_contig(1),
+                    self.tag,
+                ));
+            } else {
+                // Submit the request with both packed and memory region data.
+                let _ = self.req.insert(Request::send_nb(
+                    system.endpoints[self.dest],
+                    self.iovdata.as_ref().expect("missing iovec data").as_ptr() as *const _,
+                    count,
+                    rust_ucp_dt_make_iov(),
+                    self.tag,
+                ));
+            }
             Status::InProgress
         }
     }
