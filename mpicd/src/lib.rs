@@ -7,7 +7,7 @@ use mpicd_ucx_sys::{
     ucp_worker_params_t, ucp_worker_release_address, ucs_status_string,
     ucs_status_t, UCP_EP_CLOSE_MODE_FORCE, UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE,
     UCP_EP_PARAM_FIELD_REMOTE_ADDRESS, UCP_ERR_HANDLING_MODE_PEER,
-    UCP_FEATURE_STREAM, UCP_FEATURE_TAG, UCP_PARAM_FIELD_FEATURES,
+    UCP_FEATURE_STREAM, UCP_FEATURE_TAG, UCP_PARAM_FIELD_FEATURES, UCP_PARAM_FIELD_MT_WORKERS_SHARED,
     UCP_WORKER_PARAM_FIELD_THREAD_MODE, UCS_OK, UCS_THREAD_MODE_SINGLE,
 };
 use std::cell::RefCell;
@@ -169,8 +169,9 @@ pub fn init() -> Result<Context> {
 
         let mut context = MaybeUninit::<ucp_context_h>::uninit();
         let params = ucp_params_t {
-            field_mask: UCP_PARAM_FIELD_FEATURES.into(),
+            field_mask: (UCP_PARAM_FIELD_FEATURES | UCP_PARAM_FIELD_MT_WORKERS_SHARED).into(),
             features: (UCP_FEATURE_TAG | UCP_FEATURE_STREAM).into(),
+            mt_workers_shared: 0,
             ..Default::default()
         };
         let status = rust_ucp_init(&params, std::ptr::null(), context.as_mut_ptr());
