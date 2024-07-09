@@ -14,7 +14,11 @@
 
 #define itag 0
 
+#define USE_MEMCPY 1
+
 static int myrank;
+//#define EXTRA_TIMING(x) do { if (myrank == 0) timing_record(x); } while (0)
+#define EXTRA_TIMING(x) do {} while (0)
 
 static inline int idx2D(int x, int y, int DIM1) {
   return x+DIM1*y;
@@ -49,6 +53,7 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
   const int dim1 = info->dim1;
   const int dim2 = info->dim2;
   const int dim3 = info->dim3;
+  //printf("WRF pack: is %d ie %d ks %d ke %d js %d je %d\n", is, ie, ks, ke, js, je);
   float *__restrict__ buffer = info->buffer;
   int ilen = ie-is+1;
   size_t unit_pack_size = ilen*sizeof(float);
@@ -62,12 +67,17 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
       for(int k=js ; k<=je ; k++) {
 #ifndef USE_MEMCPY
         const float *a = array2Ds[m]+idx2D(0,k,dim1);
+#ifndef USE_STDCOPY
         for(int l=0 ; l<=ic ; l++) {
           buffer[counter++] = a[is+l];
         }
 #else
+        std::copy_n(a, ie-is, &buffer[counter]);
+        counter += ie-is;
+#endif // USE_STDCOPY
+#else
         int c = ie-is+1;
-        memcpy(&buffer[counter], array2Ds[m]+idx2D(is,k,dim1), c);
+        memcpy(&buffer[counter], array2Ds[m]+idx2D(is,k,dim1), c*sizeof(float));
         counter += c;
 #endif // USE_MEMCPY
         size -= unit_pack_size;
@@ -75,15 +85,21 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
       }
     }
     for(int m=0 ; m<info->number_3D ; m++ ) {
+      const float *a = array3Ds[m];
       for(int k=js ; k<=je ; k++ ) {
         for(int l=ks ; l<=ke ; l++ ) {
 #ifndef USE_MEMCPY
+#ifndef USE_STDCOPY
           for(int n=is ; n<=ie ; n++ ) {
-            buffer[counter++] = *(array3Ds[m]+idx3D(n,l,k,dim1,dim2));
+            buffer[counter++] = a[idx3D(n,l,k,dim1,dim2)];
           }
 #else
+          std::copy_n(&a[idx3D(is,l,k,dim1,dim2)], ie-is, &buffer[counter]);
+          counter += ie-is;
+#endif // USE_STDCOPY
+#else
           int c = ie-is+1;
-          memcpy(&buffer[counter], (array3Ds[m]+idx3D(is,l,k,dim1,dim2)), c);
+          memcpy(&buffer[counter], (array3Ds[m]+idx3D(is,l,k,dim1,dim2)), c*sizeof(float));
           counter += c;
 #endif // USE_MEMCPY
           size -= unit_pack_size;
@@ -92,16 +108,22 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
       }
     }
     for(int m=0; m<info->number_4D; m++) {
+      const float *a = array4Ds[m];
       for(int k=info->param_first_scalar; k<info->limit_4D_arrays[m]; k++) {
         for(int l=js; l<=je; l++) {
           for(int n=ks ; n<=ke; n++) {
 #ifndef USE_MEMCPY
+#ifndef USE_STDCOPY
             for(int o=is; o<=ie; o++) {
-              buffer[counter++] = *(array4Ds[m]+idx4D(o,n,l,k,dim1,dim2,dim3));
+              buffer[counter++] = a[idx4D(o,n,l,k,dim1,dim2,dim3)];
             }
 #else
+            std::copy_n(&a[idx4D(is,n,l,k,dim1,dim2,dim3)], ie-is, &buffer[counter]);
+            counter += ie-is;
+#endif // USE_STDCOPY
+#else
             int c = ie-is+1;
-            memcpy(&buffer[counter], (array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), c);
+            memcpy(&buffer[counter], (array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), c*sizeof(float));
             counter += c;
 #endif // USE_MEMCPY
             size -= unit_pack_size;
@@ -237,7 +259,7 @@ static MPI_Count unpack(pack_info_t *info)
         }
 #else
         int c = ie-is+1;
-        memcpy(array2Ds[m]+idx2D(is,k,dim1), &buffer[counter], c);
+        memcpy(array2Ds[m]+idx2D(is,k,dim1), &buffer[counter], c*sizeof(float));
         counter += c;
 #endif // USE_MEMCPY
         size -= unit_pack_size;
@@ -253,7 +275,7 @@ static MPI_Count unpack(pack_info_t *info)
           }
 #else
           int c = ie-is+1;
-          memcpy((array3Ds[m]+idx3D(is,l,k,dim1,dim2)), &buffer[counter], c);
+          memcpy((array3Ds[m]+idx3D(is,l,k,dim1,dim2)), &buffer[counter], c*sizeof(float));
           counter += c;
 #endif // USE_MEMCPY
 
@@ -272,7 +294,7 @@ static MPI_Count unpack(pack_info_t *info)
             }
 #else
             int c = ie-is+1;
-            memcpy((array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), &buffer[counter], c);
+            memcpy((array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), &buffer[counter], c*sizeof(float));
             counter += c;
 #endif // USE_MEMCPY
             size -= unit_pack_size;
@@ -428,13 +450,13 @@ static int pack_cb(
   if (packed_size <= dst_size && offset == 0) {
     /* pack everything at once; Clang 16 won't vectorize the coro code so we try to call the vectorized code */
     *used = pack(info, info->ie, info->is);
-    //if (myrank == 0) timing_record(2);
+    EXTRA_TIMING(2);
     return MPI_SUCCESS;
   } else {
     /* pack using coro, potentially slower due to missing vectorization */
     if (info->coro.next()) {
       *used = info->coro.getValue().value();
-      //if (myrank == 0) timing_record(2);
+      EXTRA_TIMING(2);
       return MPI_SUCCESS;
     } else {
       throw std::runtime_error("Pack called without data left!");
@@ -448,7 +470,7 @@ static int unpack_cb(
   MPI_Count offset, const void *src,
   MPI_Count src_size)
 {
-  //if (myrank == 0) timing_record(3);
+  EXTRA_TIMING(3);
   pack_info_t *info = (pack_info_t*)state;
   info->pack_unpack = 1; // unpack
   info->buf_size = src_size;
@@ -457,12 +479,12 @@ static int unpack_cb(
   query_cb(state, buf, count, &packed_size);
   if (packed_size <= src_size && offset == 0) {
     unpack(info);
-    //if (myrank == 0) timing_record(4);
+    EXTRA_TIMING(4);
     return MPI_SUCCESS;
   } else {
     if (info->coro.next()) {
       info->coro.getValue().value();
-      //if (myrank == 0) timing_record(4);
+      EXTRA_TIMING(4);
       return MPI_SUCCESS;
     } else {
       throw std::runtime_error("Unpack called without data left!");
@@ -598,16 +620,16 @@ void timing_wrf_custom ( int number_2D, int number_3D, int number_4D, int ims, i
 
 //! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
-        MPI_Send( MPI_BOTTOM, 1, type, 1, itag, local_communicator );
+        MPI_Send( NULL, 1, type, 1, itag, local_communicator );
 //! receive the data back from rank 1
-        MPI_Recv( MPI_BOTTOM, 1, type, 1, itag, local_communicator, &status );
+        MPI_Recv( NULL, 1, type, 1, itag, local_communicator, &status );
         timing_record(3);
 //! now for rank 1
       } else {
 //! receive from rank 0
-        MPI_Recv( MPI_BOTTOM, 1, type, 0, itag, local_communicator, &status );
+        MPI_Recv( NULL, 1, type, 0, itag, local_communicator, &status );
 //!> send to rank 0
-        MPI_Send( MPI_BOTTOM, 1, type, 0, itag, local_communicator );
+        MPI_Send( NULL, 1, type, 0, itag, local_communicator );
       } //! of myrank .EQ. 0?
 
     } //! inner_loop

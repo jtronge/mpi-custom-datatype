@@ -26,9 +26,12 @@ struct mem_info_t {
   template<typename C, typename G>
   mem_info_t(C&& count, G&& get)
   : countfn(std::forward<C>(count))
-  , getfn(std::forward<G>(g))
+  , getfn(std::forward<G>(get))
   { }
 };
+
+template<typename CountFn, typename GetFn>
+mem_info_t(CountFn&&, GetFn&&) -> mem_info_t<CountFn, GetFn>;
 
 //int free_cb(void *state) { return MPI_SUCCESS; }
 
@@ -78,13 +81,13 @@ int region_query_cb(
   MemInfoT *info = (MemInfoT*)state;
   assert(region_count == info->countfn()); // make sure we can store them all at once
   assert(count == 1); // we know we only transfer one at a time
-  info->getfn(reg_lens, reg_bases, reg_types);
+  info->getfn(buf, reg_bases, reg_lens, reg_types);
 
   return MPI_SUCCESS;
 }
 
 template<typename CountFn, typename GetFn>
-static MPI_Datatype make_region_info(CountFn&& c, GetFn&& g)
+static auto make_region_info(CountFn&& c, GetFn&& g)
 {
   auto info = new mem_info_t(std::forward<CountFn>(c), std::forward<GetFn>(g));
   return info;
@@ -93,7 +96,7 @@ static MPI_Datatype make_region_info(CountFn&& c, GetFn&& g)
 template<typename MemInfoT>
 MPI_Datatype create_region_datatype(MemInfoT* info)
 {
-  using mem_info = std::decay_t<PackInfoT>;
+  using mem_info = std::decay_t<MemInfoT>;
   MPI_Datatype res;
   MPI_Type_create_custom(state_mem_cb<mem_info>,
                          NULL, NULL, NULL, NULL,
@@ -135,7 +138,7 @@ struct pack_info_t {
   }
   constexpr int inner_ub() const {
     if constexpr(VAR_INNER_UB == InnerUB) {
-      return inner_ub; // only used if variable
+      return m_inner_ub; // only used if variable
     } else {
       return InnerUB;
     }
@@ -146,7 +149,7 @@ struct pack_info_t {
   }
 
   int outer_ub() const {
-    return outer_ub;
+    return m_outer_ub;
   }
 };
 
@@ -209,7 +212,7 @@ static coro::generator<MPI_Count> pack_unpack_coro(PackInfoT *info)
     /* pack */
     for( int k=info->outer_lb() ; k<info->outer_ub() ; k++ ) {
       for( int l=info->inner_lb(); l<info->inner_ub(); l += UNIT_PACK_SIZE ) {
-        if ((l+UNIT_PACK_SIZE) <= inner_ub) {
+        if ((l+UNIT_PACK_SIZE) <= info->inner_ub()) {
 #ifndef USE_MEMCPY
           for (int i = 0; i < UNIT_PACK_SIZE; i++) {
             buffer[pos++] = array[info->packidx(k, l+i)];
@@ -349,8 +352,8 @@ MPI_Datatype create_mpi_datatype(PackInfoT* info)
 {
   using pack_info = std::decay_t<PackInfoT>;
   MPI_Datatype res;
-  MPI_Type_create_custom(state_cb<pack_info>, NULL,
-                         query_cb<pack_info>, pack_cb<pack_info>,
+  MPI_Type_create_custom(state_pack_cb<pack_info>, NULL,
+                         query_pack_cb<pack_info>, pack_cb<pack_info>,
                          unpack_cb<pack_info>,
                          NULL, NULL, info, 1, &res);
   return res;
@@ -758,7 +761,7 @@ void timing_nas_lu_y_region( int DIM2, int DIM3, int outer_loop, int inner_loop,
     timing_init( testname, &method[0], bytes );
   }
 
-  auto *info = make_mem_info<1, 0>(
+  auto *info = make_region_info(
     [=](){ // region count
       return DIM3;
     },
@@ -837,7 +840,7 @@ void timing_nas_lu_x_region( int DIM2, int DIM3, int outer_loop, int inner_loop,
     timing_init( testname, &method[0], bytes );
   }
 
-  auto *info = make_mem_info<1, 0>(
+  auto *info = make_region_info(
     [=](){ // region count
       return 1;
     },
@@ -911,7 +914,7 @@ void timing_nas_mg_x_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
     timing_init( testname, &method[0], bytes );
   }
 
-  auto *info = make_mem_info<1, 0>(
+  auto *info = make_region_info(
     [=](){ // region count
       return (DIM3-2)*(DIM2-2);
     },
@@ -994,7 +997,7 @@ void timing_nas_mg_y_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
     timing_init( testname, method, bytes );
   }
 
-  auto *info = make_mem_info<1, 0>(
+  auto *info = make_region_info(
     [=](){ // region count
       return (DIM3-2);
     },
@@ -1002,7 +1005,7 @@ void timing_nas_mg_y_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
       /* fill in the region information */
       double *db = (double*)buffer;
       for (int i = 0; i < DIM3-2; ++i) {
-        bases[i]  = &db[i*DIM1*DIM2)];
+        bases[i]  = &db[i*DIM1*DIM2];
         counts[i] = (DIM1-2)*sizeof(double);
         types[i]  = MPI_BYTE;
       }
@@ -1074,7 +1077,7 @@ void timing_nas_mg_z_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
     timing_init( testname, &method[0], bytes );
   }
 
-  auto *info = make_mem_info<1, 0>(
+  auto *info = make_region_info(
     [=](){ // region count
       return (DIM2-2);
     },
@@ -1082,7 +1085,7 @@ void timing_nas_mg_z_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
       /* fill in the region information */
       double *db = (double*)buffer;
       for (int i = 0; i < DIM2-2; ++i) {
-        bases[i]  = &db[i*DIM1)];
+        bases[i]  = &db[i*DIM1];
         counts[i] = (DIM1-2)*sizeof(double);
         types[i]  = MPI_BYTE;
       }

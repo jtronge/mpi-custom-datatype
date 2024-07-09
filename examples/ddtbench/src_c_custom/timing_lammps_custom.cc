@@ -205,15 +205,15 @@ void timing_lammps_full_custom(int DIM1, int icount, int* list, int outer_loop, 
       timing_record(1);
     }
 
-    for( j=0 ; j<inner_loop ; j++ ) {
+    for( int j=0 ; j<inner_loop ; j++ ) {
 
       if ( myrank == 0 ) {
-        MPI_Send( MPI_BOTTOM, 1, type, 1, itag, local_communicator );
-        MPI_Recv( MPI_BOTTOM, 1, type, 1, itag, local_communicator, &status );
+        MPI_Send( NULL, icount, type, 1, itag, local_communicator );
+        MPI_Recv( NULL, icount, type, 1, itag, local_communicator, &status );
         timing_record(3);
       } else {
-        MPI_Recv( MPI_BOTTOM, 1, type, 0, itag, local_communicator, &status );
-        MPI_Send( MPI_BOTTOM, 1, type, 0, itag, local_communicator );
+        MPI_Recv( NULL, icount, type, 0, itag, local_communicator, &status );
+        MPI_Send( NULL, icount, type, 0, itag, local_communicator );
       }
 
     } //! inner loop
