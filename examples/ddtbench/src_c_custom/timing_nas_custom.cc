@@ -753,7 +753,7 @@ void timing_nas_lu_y_region( int DIM2, int DIM3, int outer_loop, int inner_loop,
   utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2+2, DIM3+2, base );
 
   if ( myrank == 0 ) {
-    snprintf(method, 50, "custom");
+    snprintf(method, 50, "custom_region");
     bytes = 5 * DIM3 * typesize;
     timing_init( testname, &method[0], bytes );
   }
@@ -831,7 +831,7 @@ void timing_nas_lu_x_region( int DIM2, int DIM3, int outer_loop, int inner_loop,
   utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2+2, DIM3+2, base );
 
   if ( myrank == 0 ) {
-    snprintf(method, 50, "custom");
+    snprintf(method, 50, "custom_region");
     bytes = DIM1 * DIM2 * typesize;
 
     timing_init( testname, &method[0], bytes );
@@ -905,7 +905,7 @@ void timing_nas_mg_x_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
   utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2, DIM3, base);
 
   if ( myrank == 0 ) {
-    snprintf(method, 50, "custom");
+    snprintf(method, 50, "custom_region");
     bytes = (DIM2-2)*(DIM3-2) * typesize;
 
     timing_init( testname, &method[0], bytes );
@@ -988,7 +988,7 @@ void timing_nas_mg_y_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
   utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2, DIM3, base);
 
   if ( myrank == 0 ) {
-    snprintf(method, 50, "custom");
+    snprintf(method, 50, "custom_region");
     bytes = (DIM1-2)*(DIM3-2) * typesize;
 
     timing_init( testname, method, bytes );
@@ -1068,7 +1068,7 @@ void timing_nas_mg_z_region( int DIM1, int DIM2, int DIM3, int outer_loop, int i
   utilities_fill_unique_array_3D_double( &array[0], DIM1, DIM2, DIM3, base );
 
   if ( myrank == 0 ) {
-    snprintf( method, 50, "custom" );
+    snprintf( method, 50, "custom_region" );
     bytes = (DIM1-2) * (DIM2-2) * typesize;
 
     timing_init( testname, &method[0], bytes );

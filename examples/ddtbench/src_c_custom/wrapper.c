@@ -148,6 +148,8 @@ void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop
 
   timing_nas_lu_x_custom( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+  timing_nas_lu_x_region( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
   timing_nas_lu_x_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
@@ -175,6 +177,8 @@ void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop
   }
 
   timing_nas_lu_y_custom( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_lu_y_region( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
   timing_nas_lu_y_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
@@ -212,6 +216,8 @@ void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
   timing_nas_mg_x_custom( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+  timing_nas_mg_x_region( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
   timing_nas_mg_x_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
@@ -241,6 +247,8 @@ void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
    timing_nas_mg_y_custom( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+   timing_nas_mg_y_region( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
    timing_nas_mg_y_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
@@ -269,6 +277,8 @@ void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int 
   }
 
   timing_nas_mg_z_custom( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_mg_z_region( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
   timing_nas_mg_z_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
