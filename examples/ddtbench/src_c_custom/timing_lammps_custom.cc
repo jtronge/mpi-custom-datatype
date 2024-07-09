@@ -11,6 +11,9 @@
 
 #define itag 0
 
+
+static int myrank;
+
 static inline int idx2D(int x, int y, int DIM1) {
   return x+y*DIM1;
 }
@@ -73,6 +76,7 @@ static int pack_cb(
   }
 
   *used = mycount*8*sizeof(double);
+  //if (myrank == 0) timing_record(2);
 
   return MPI_SUCCESS;
 }
@@ -82,6 +86,7 @@ static int unpack_cb(
   MPI_Count offset, const void *src_v,
   MPI_Count src_size)
 {
+  //if (myrank == 0) timing_record(3);
   MPI_Count pos = 0;
   field_info_t *info = (field_info_t*)state;
   double *__restrict__ src = (double*) src_v;
@@ -111,6 +116,7 @@ static int unpack_cb(
     amolecule[l] = src[pos++];
     aq[l] = src[pos++];
   }
+  //if (myrank == 0) timing_record(4);
 
   return MPI_SUCCESS;
 }
@@ -125,9 +131,6 @@ void timing_lammps_full_custom(int DIM1, int icount, int* list, int outer_loop, 
   double* aq;
   double* ax;
 
-  double* buffer;
-
-  int myrank;
   int typesize, bytes, base, pos, isize;
 
   int* temp_displacement;
@@ -198,28 +201,22 @@ void timing_lammps_full_custom(int DIM1, int icount, int* list, int outer_loop, 
     MPI_Status status;
     info.i = i;
 
-    isize = 8*icount;
-    bytes = isize * sizeof(double);
-    buffer = (double*)malloc( isize * sizeof(double) );
-
     if ( myrank == 0 ) {
       timing_record(1);
     }
 
-    for( int j=0 ; j<inner_loop ; j++ ) {
+    for( j=0 ; j<inner_loop ; j++ ) {
 
       if ( myrank == 0 ) {
-        MPI_Send( &buffer[0], icount, type, 1, itag, local_communicator );
-        MPI_Recv( &buffer[0], icount, type, 1, itag, local_communicator, &status );
+        MPI_Send( MPI_BOTTOM, 1, type, 1, itag, local_communicator );
+        MPI_Recv( MPI_BOTTOM, 1, type, 1, itag, local_communicator, &status );
         timing_record(3);
       } else {
-        MPI_Recv( &buffer[0], icount, type, 0, itag, local_communicator, &status );
-        MPI_Send( &buffer[0], icount, type, 0, itag, local_communicator );
+        MPI_Recv( MPI_BOTTOM, 1, type, 0, itag, local_communicator, &status );
+        MPI_Send( MPI_BOTTOM, 1, type, 0, itag, local_communicator );
       }
 
     } //! inner loop
-
-    free( buffer );
 
     if ( myrank == 0 ) {
       timing_record(5);
