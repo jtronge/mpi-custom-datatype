@@ -37,9 +37,12 @@ def pingpong(MPI, args=None, verbose=True):
     #parser.add_argument("--protocol", type=int,
     #                    dest="protocol", default=None,
     #                    help="pickle protocol version")
-    parser.add_argument("-o", "--outband", action="store_true",
-                        dest="outband", default=False,
+    parser.add_argument("-o", "--oob", "--outband", action="store_true",
+                        dest="oob", default=False,
                         help="use out-of-band pickle-based send and receive")
+    parser.add_argument("-c", "--cdt", "--custom-datatype", action="store_true",
+                        dest="cdt", default=False,
+                        help="use custom-datatype send and receive")
     parser.add_argument("--skip-large", type=int,
                         dest="skip_large", default=10)
     parser.add_argument("--loop-large", type=int,
@@ -78,15 +81,19 @@ def pingpong(MPI, args=None, verbose=True):
     loop_huge = options.loop_huge
     huge_size = options.huge_size
 
-    use_pickle = options.pickle or options.outband
-    use_outband = options.outband
+    use_pickle = options.pickle or options.oob or options.cdt
+    use_oob = options.oob or options.cdt
+    use_cdt = options.cdt
 
     buf_sizes = [1 << i for i in range(33)]
     buf_sizes = [n for n in buf_sizes if min_size <= n <= max_size]
 
     wtime = time.perf_counter
     comm = MPI.COMM_WORLD
-    if use_outband:
+    if use_cdt:
+        send = comm.send_oob_cdt
+        recv = comm.recv_oob_cdt
+    elif use_oob:
         send = comm.send_oob
         recv = comm.recv_oob
     elif use_pickle:
@@ -130,7 +137,7 @@ def pingpong(MPI, args=None, verbose=True):
             loop = min(loop, loop_huge)
         iterations = list(range(loop + skip))
 
-        if use_pickle or use_outband:
+        if use_pickle or use_oob or use_cdt:
             s_msg = allocate(nbytes)
         else:
             s_msg = [allocate(nbytes), nbytes, MPI.BYTE]

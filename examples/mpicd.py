@@ -179,6 +179,37 @@ class Intracomm:
         return pickle_loads(buf)
 
     def send_oob(self, obj, dest, tag=0):
+        stype = lib.MPI_BYTE
+        comm = self.ob_mpi
+        bufs = pickle_dumps_oob(obj)
+        bufs = list(map(memoryview, bufs))
+        lens = ffi.new('MPI_Count[]', list(map(len, bufs)))
+        nbytes = len(lens) * ffi.sizeof('MPI_Count')
+        CHKERR( lib.MPI_Send(lens, nbytes, stype, dest, tag, comm) )
+        for buf in bufs:
+            sbuf = ffi.from_buffer(buf)
+            CHKERR( lib.MPI_Send(sbuf, len(sbuf), stype, dest, tag, comm) )
+
+    def recv_oob(self, buf=None, source=ANY_SOURCE, tag=ANY_TAG, status=None):
+        assert status is None
+        rtype = lib.MPI_BYTE
+        comm = self.ob_mpi
+        status = ffi.new('MPI_Status*')
+        CHKERR( lib.MPI_Probe(source, tag, comm, status) )
+        source = status.MPI_SOURCE
+        tag = status.MPI_TAG
+        nbytes = ffi.new('int*')
+        CHKERR( lib.MPI_Get_count(status, lib.MPI_BYTE, nbytes) )
+        nbytes = nbytes[0]
+        lens = ffi.new('MPI_Count[]', nbytes//ffi.sizeof('MPI_Count'))
+        CHKERR( lib.MPI_Recv(lens, nbytes, rtype, source, tag, comm, status) )
+        bufs = list(map(allocate, lens))
+        for buf in bufs:
+            rbuf = ffi.from_buffer(buf)
+            CHKERR( lib.MPI_Recv(rbuf, len(rbuf), rtype, source, tag, comm, status) )
+        return pickle_loads_oob(bufs)
+
+    def send_oob_cdt(self, obj, dest, tag=0):
         comm = self.ob_mpi
         bufs = pickle_dumps_oob(obj)
         bufs = list(map(memoryview, bufs))
@@ -190,7 +221,7 @@ class Intracomm:
         CHKERR( lib.MPI_Send(sbuf, 1, stype, dest, tag, comm) )
         destroy_custom_datatype(stype)
 
-    def recv_oob(self, buf=None, source=ANY_SOURCE, tag=ANY_TAG, status=None):
+    def recv_oob_cdt(self, buf=None, source=ANY_SOURCE, tag=ANY_TAG, status=None):
         assert status is None
         comm = self.ob_mpi
         status = ffi.new('MPI_Status*')

@@ -1,33 +1,35 @@
 #!/usr/bin/env python3
 """Plot the python pingpong results."""
+import numpy as np
 from matplotlib import pyplot as plt
 
 
 def load_and_plot(fnames, title):
     results = {}
-    for method in ['baseline', 'pickle-oob', 'pickle-basic']:
-        data = []
-        size = []
-        with open(fnames[method]) as fp:
-            for line in fp:
-                if line.startswith('#'):
-                    continue
-                line = line.split()
-                sz = int(line[0])
-                bw = float(line[1])
-                size.append(sz)
-                data.append(bw)
+    for method in [
+        'baseline',
+        'pickle-oob-cdt',
+        # 'pickle-oob',
+        'pickle-basic',
+    ]:
+        size, data = np.genfromtxt(
+            fnames[method],
+            usecols=[0, 1],
+            unpack=True
+        )
         results[method] = [size, data]
     print(results)
 
     formats = {
         'baseline': '.-r',
-        'pickle-oob': '+:b',
+        'pickle-oob-cdt': '+:b',
+        'pickle-oob': '.:b',
         'pickle-basic': '>-b',
     }
 
     labels = {
         'baseline': 'baseline',
+        'pickle-oob-cdt': 'pickle-oob-cdt',
         'pickle-oob': 'pickle-oob',
         'pickle-basic': 'pickle-basic',
     }
@@ -49,10 +51,12 @@ def load_and_plot(fnames, title):
 
 if __name__ == '__main__':
     load_and_plot({'baseline': 'results/python-pingpong/one-node/baseline.out',
+                   'pickle-oob-cdt': 'results/python-pingpong/one-node/pickle_oob_cdt.out',
                    'pickle-oob': 'results/python-pingpong/one-node/pickle_oob.out',
                    'pickle-basic': 'results/python-pingpong/one-node/pickle_basic.out'},
                   title='pingpong test (Python) - one node')
     load_and_plot({'baseline': 'results/python-pingpong/two-node/baseline.out',
+                   'pickle-oob-cdt': 'results/python-pingpong/two-node/pickle_oob_cdt.out',
                    'pickle-oob': 'results/python-pingpong/two-node/pickle_oob.out',
                    'pickle-basic': 'results/python-pingpong/two-node/pickle_basic.out'},
                   title='pingpong test (Python) - two node')
