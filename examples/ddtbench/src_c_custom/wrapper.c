@@ -37,6 +37,9 @@ void wrapper_timing_wrf_vec( int number_2D, int number_3D, int number_4D, int im
   timing_wrf_custom( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
     &correct_flag, &typesize, &testname[0], local_communicator );
 
+  timing_wrf_manual( number_2D, number_3D, number_4D, ims, ime, jms, jme, kms, kme, limit_4D_arrays, is, ie, js, je, ks, ke, param_first_scalar, outer_loop, inner_loop,
+    &correct_flag, &typesize, &testname[0], local_communicator );
+
   nelements = number_2D * (ie-is+1) * (je-js+1) + number_3D * (ie-is+1) * (je-js+1) * (ke-ks+1);
   for( m=0 ; m<number_4D ; m++ ) {
     if (limit_4D_arrays[m] >= param_first_scalar) {
@@ -117,6 +120,8 @@ void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int 
 
   timing_milc_su3_zdown_custom( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+  timing_milc_su3_zdown_manual( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
 //! not necessarily correct, since it assumes that a complex uses twice
 //! the bytes a real does
    nelements = DIM2*DIM3/2*DIM5*2*3*2;
@@ -143,6 +148,10 @@ void wrapper_timing_nas_lu_x( int DIM2, int DIM3, int outer_loop, int inner_loop
 
   timing_nas_lu_x_custom( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+  timing_nas_lu_x_region( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_lu_x_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
   nelements = 5 * DIM2 * 2;
@@ -168,6 +177,10 @@ void wrapper_timing_nas_lu_y( int DIM2, int DIM3, int outer_loop, int inner_loop
   }
 
   timing_nas_lu_y_custom( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_lu_y_region( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_lu_y_manual( DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -203,6 +216,10 @@ void wrapper_timing_nas_mg_x( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
   timing_nas_mg_x_custom( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+  timing_nas_mg_x_region( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_mg_x_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
   nelements = (DIM2-2)*(DIM3-2)*2;
@@ -230,6 +247,10 @@ void wrapper_timing_nas_mg_y( int DIM1, int DIM2, int DIM3, int outer_loop, int 
 
    timing_nas_mg_y_custom( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
+   timing_nas_mg_y_region( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+   timing_nas_mg_y_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
     nelements = (DIM1-2) * (DIM3-2) * 2;
@@ -256,6 +277,10 @@ void wrapper_timing_nas_mg_z( int DIM1, int DIM2, int DIM3, int outer_loop, int 
   }
 
   timing_nas_mg_z_custom( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_mg_z_region( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_nas_mg_z_manual( DIM1, DIM2, DIM3, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does
@@ -372,6 +397,8 @@ void wrapper_timing_lammps_full( int DIM1, int icount, int outer_loop, int inner
   }
 
   timing_lammps_full_custom( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+
+  timing_lammps_full_manual( DIM1, icount, list, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
 //! not necessarily correct, since it assumes that a double uses twice
 //! the bytes a real does

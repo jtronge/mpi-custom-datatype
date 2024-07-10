@@ -21,7 +21,7 @@ static inline int idx4D(int x, int y, int z, int t, int DIM1, int DIM2, int DIM3
   return x+DIM1*(y+DIM2*(z+DIM3*t));
 }
 
-void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je, 
+void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
   int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_File filehandle_debug, MPI_Comm local_communicator ) {
 
   float** array2Ds;
@@ -137,7 +137,7 @@ void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, i
 
 //! =============== ping pong communication =================
 
-//! send the data from rank 0 to rank 1 
+//! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
 //! ==================== pack the data ======================
         counter = 0;
@@ -205,9 +205,9 @@ void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, i
         timing_record(4);
 //! now for rank 1
       } else {
-//! receive from rank 0      
+//! receive from rank 0
         MPI_Recv( &buffer[0], element_number, MPI_FLOAT, 0, itag, local_communicator, MPI_STATUS_IGNORE );
-//! unpack the data 
+//! unpack the data
         counter = 0;
         for( m=0 ; m<number_2D ; m++ ) {
           for( k=js ; k<=je ; k++ ) {
@@ -299,13 +299,13 @@ void timing_wrf_manual ( int number_2D, int number_3D, int number_4D, int ims, i
   for( m=0 ; m<number_4D ; m++ ) {
     free( array4Ds[m] );
   }
-     
+
   free( array2Ds );
   free( array3Ds );
   free( array4Ds );
 }
 
-void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je, 
+void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
   int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_File filehandle_debug, MPI_Comm local_communicator ) {
 
   float** array2Ds;
@@ -368,7 +368,7 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
     counter = counter + limit_4D_arrays[m] * dim1 * dim2 * dim3;
   }
   base = myrank * counter + 1;
- 
+
   for( m=0 ; m<number_2D ; m++ ) {
     array2Ds[m] = malloc( dim1 * dim3 * sizeof(float) );
     utilities_fill_unique_array_2D_float( array2Ds[m], dim1, dim3, base );
@@ -418,7 +418,7 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
         counter++;
       }
     }
- 
+
     oldtype = malloc( counter * sizeof(MPI_Datatype) );
     blocklength = malloc( counter * sizeof(int) );
     displacement = malloc( counter * sizeof(MPI_Aint) );
@@ -426,10 +426,10 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
     for( j=0 ; j<counter ; j++) {
       blocklength[j] = 1;
     }
-  
+
     counter = 0;
-    
-//! building the 2D datatype    
+
+//! building the 2D datatype
     MPI_Type_vector( sub_dim3, sub_dim1, dim1, MPI_FLOAT, &dtype_temp_2D_t );
 
 //! set the parameter for the struct datatype for the 2D parts
@@ -486,7 +486,7 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
 
 //! =============== ping pong communication =================
 
-//! send the data from rank 0 to rank 1 
+//! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
         MPI_Send( MPI_BOTTOM, 1, dtype_subarray_t, 1, itag, local_communicator );
 //! receive the data back from rank 1
@@ -494,7 +494,7 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
         timing_record(3);
 //! now for rank 1
       } else {
-//! receive from rank 0      
+//! receive from rank 0
         MPI_Recv( MPI_BOTTOM, 1, dtype_subarray_t, 0, itag, local_communicator, MPI_STATUS_IGNORE );
 //! send to rank 0
         MPI_Send( MPI_BOTTOM, 1, dtype_subarray_t, 0, itag, local_communicator );
@@ -529,13 +529,13 @@ void timing_wrf_vec_ddt ( int number_2D, int number_3D, int number_4D, int ims, 
   for( m=0 ; m<number_4D ; m++ ) {
     free( array4Ds[m] );
   }
-     
+
   free( array2Ds );
   free( array3Ds );
   free( array4Ds );
 }
 
-void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, 
+void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js,
   int je, int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_File filehandle_debug, MPI_Comm local_communicator ) {
 
   float** array2Ds;
@@ -632,7 +632,7 @@ void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, 
         counter = counter + (limit_4D_arrays[m]-param_first_scalar) * sub_dim1 * sub_dim2 * sub_dim3;
       }
     }
-        
+
     MPI_Type_size( MPI_FLOAT, &typesize );
     bytes = counter * typesize;
 
@@ -660,7 +660,7 @@ void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, 
         counter++;
       }
     }
- 
+
     oldtype = malloc( counter * sizeof(MPI_Datatype) );
     blocklength = malloc( counter * sizeof(int) );
     displacement = malloc( counter * sizeof(MPI_Aint) );
@@ -668,9 +668,9 @@ void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, 
     for( j=0 ; j<counter ; j++ ) {
       blocklength[j] = 1;
     }
-  
+
     MPI_Type_vector( sub_dim3, sub_dim1, dim1, MPI_FLOAT, &dtype_temp_2D_t );
- 
+
     counter = 0;
     for( m=0 ; m<number_2D ; m++ ) {
       MPI_Get_address( array2Ds[m]+idx2D(is,js,dim1), &displacement[counter] );
@@ -720,7 +720,7 @@ void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, 
 
 //! =============== ping pong communication =================
 
-//! send the data from rank 0 to rank 1 
+//! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
 //! ==================== pack the data ======================
         pos = 0;
@@ -736,9 +736,9 @@ void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, 
         timing_record(4);
 //! now for rank 1
       } else {
-//! receive from rank 0      
+//! receive from rank 0
         MPI_Recv( &buffer[0], bytes, MPI_PACKED, 0, itag, local_communicator, MPI_STATUS_IGNORE );
-//! unpack the data 
+//! unpack the data
         pos = 0;
         MPI_Unpack( &buffer[0], bytes, &pos, MPI_BOTTOM, 1, dtype_subarray_t, local_communicator );
 //! pack the data
@@ -779,13 +779,13 @@ void timing_wrf_vec_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, 
   for( m=0 ; m<number_4D ; m++ ) {
     free( array4Ds[m] );
   }
-     
+
   free( array2Ds );
   free( array3Ds );
   free( array4Ds );
 }
 
-void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je, 
+void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
   int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_File filehandle_debug, MPI_Comm local_communicator ) {
 
   float** array2Ds;
@@ -880,7 +880,7 @@ void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, i
         counter = counter + (limit_4D_arrays[m]-param_first_scalar) * sub_dim1 * sub_dim2 * sub_dim3;
       }
     }
-    
+
     MPI_Type_size( MPI_FLOAT, &typesize );
     bytes = counter * typesize;
 
@@ -899,7 +899,7 @@ void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, i
         counter++;
       }
     }
- 
+
     oldtype = malloc( counter * sizeof(MPI_Datatype) );
     blocklength = malloc( counter * sizeof(int) );
     displacement = malloc( counter * sizeof(MPI_Aint) );
@@ -907,10 +907,10 @@ void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, i
     for( j=0 ; j<counter ; j++ ) {
       blocklength[j] = 1;
     }
-  
+
     counter = 0;
-       
-//! create the 2D subarray type 
+
+//! create the 2D subarray type
     arraysize[2] = dim3;
     arraysize[3] = dim1;
     subarraysize[2] = sub_dim3;
@@ -978,7 +978,7 @@ void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, i
 
 //! =============== ping pong communication =================
 
-//! send the data from rank 0 to rank 1 
+//! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
         MPI_Send( MPI_BOTTOM, 1, dtype_subarray_t, 1, itag, local_communicator );
 //! receive the data back from rank 1
@@ -986,7 +986,7 @@ void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, i
         timing_record(3);
 //! now for rank 1
       } else {
-//! receive from rank 0      
+//! receive from rank 0
         MPI_Recv( MPI_BOTTOM, 1, dtype_subarray_t, 0, itag, local_communicator, MPI_STATUS_IGNORE );
 //! send to rank 0
         MPI_Send( MPI_BOTTOM, 1, dtype_subarray_t, 0, itag, local_communicator );
@@ -1021,19 +1021,19 @@ void timing_wrf_sa_ddt ( int number_2D, int number_3D, int number_4D, int ims, i
   for( m=0 ; m<number_4D ; m++ ) {
     free( array4Ds[m] );
   }
-     
+
   free( array2Ds );
   free( array3Ds );
   free( array4Ds );
 }
 
-void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je, 
+void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, int ims, int ime, int jms, int jme, int kms, int kme, int* limit_4D_arrays, int is, int ie, int js, int je,
   int ks, int ke, int param_first_scalar, int outer_loop, int inner_loop, int* correct_flag, int* ptypesize, char* testname, MPI_File filehandle_debug, MPI_Comm local_communicator ) {
 
   float** array2Ds;
   float** array3Ds;
   float** array4Ds;
-      
+
   int m, counter, i, j, bytes, typesize, pos, base;
   int element_number;
   int myrank;
@@ -1084,7 +1084,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
   array2Ds = malloc( number_2D * sizeof(float*) );
   array3Ds = malloc( number_3D * sizeof(float*) );
   array4Ds = malloc( number_4D * sizeof(float*) );
- 
+
 //! allocate and initialize the arrays
 //! compute the number of elements in the arrays
   counter = ( number_2D + number_3D * dim2 ) * dim1 * dim3;
@@ -1092,7 +1092,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
     counter = counter + limit_4D_arrays[m] * dim1 * dim2 * dim3;
   }
   base = myrank * counter + 1;
- 
+
   for( m=0 ; m<number_2D ; m++ ) {
     array2Ds[m] = malloc( dim1 * dim3 * sizeof(float) );
     utilities_fill_unique_array_2D_float( array2Ds[m], dim1, dim3, base );
@@ -1151,7 +1151,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
         counter++;
       }
     }
- 
+
     oldtype = malloc( counter * sizeof(MPI_Datatype) );
     blocklength = malloc( counter * sizeof(int) );
     displacement = malloc( counter * sizeof(MPI_Aint) );
@@ -1161,7 +1161,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
     }
 
     counter = 0;
- 
+
 //! create the subtype for the 2D case
     arraysize[2] = dim3;
     arraysize[3] = dim1;
@@ -1203,7 +1203,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
         MPI_Get_address( array4Ds[m], &displacement[counter++] );
       }
     }
- 
+
 //! create the all-embracing struct type
     MPI_Type_create_struct( counter, blocklength, displacement, oldtype, &dtype_subarray_t );
     MPI_Type_commit( &dtype_subarray_t );
@@ -1229,7 +1229,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
 
 //! =============== ping pong communication =================
 
-//! send the data from rank 0 to rank 1 
+//! send the data from rank 0 to rank 1
       if ( myrank == 0 ) {
 //! ==================== pack the data ======================
         pos = 0;
@@ -1245,9 +1245,9 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
         timing_record(4);
 //! now for rank 1
       } else {
-//! receive from rank 0      
+//! receive from rank 0
         MPI_Recv( &buffer[0], bytes, MPI_PACKED, 0, itag, local_communicator, MPI_STATUS_IGNORE );
-//! unpack the data 
+//! unpack the data
         pos = 0;
         MPI_Unpack( &buffer[0], bytes, &pos, MPI_BOTTOM, 1, dtype_subarray_t, local_communicator );
 //! pack the data
@@ -1288,7 +1288,7 @@ void timing_wrf_sa_mpi_pack_ddt ( int number_2D, int number_3D, int number_4D, i
   for( m=0 ; m<number_4D ; m++ ) {
     free(array4Ds[m] );
   }
-     
+
   free( array2Ds );
   free( array3Ds );
   free( array4Ds );

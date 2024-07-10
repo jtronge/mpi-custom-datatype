@@ -27,7 +27,7 @@ void timing_basic_ping_pong_nelements( int DIM1, int loop, char* testname, MPI_C
   utilities_fill_unique_array_1D_float( &array[0], DIM1, base );
 
   if ( myrank == 0 ) {
-    snprintf(&method[0], 50, "custom_reference");
+    snprintf(&method[0], 50, "mpicd_reference");
 
     bytes = typesize * DIM1;
 
