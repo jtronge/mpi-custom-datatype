@@ -29,7 +29,7 @@ def pingpong(MPI, args=None, verbose=True):
                         help="number of iterations")
     parser.add_argument("-a", "--array", action="store",
                         dest="array", default="numpy",
-                        choices=["numpy", "array", "none"],
+                        choices=["numpy", "array", "complex-object", "none"],
                         help="use NumPy/array arrays")
     parser.add_argument("-p", "--pickle", action="store_true",
                         dest="pickle", default=False,
@@ -65,7 +65,7 @@ def pingpong(MPI, args=None, verbose=True):
 
     # pylint: disable=import-error
     numpy = array = None
-    if options.array == 'numpy':
+    if options.array == 'numpy' or options.array == 'complex-object':
         import numpy
     elif options.array == 'array':
         import array
@@ -105,7 +105,9 @@ def pingpong(MPI, args=None, verbose=True):
     s_msg = r_msg = None
 
     def allocate(nbytes):  # pragma: no cover
-        if numpy:
+        if options.array == 'complex-object':
+            return ComplexObject(nbytes, numpy)
+        elif numpy:
             return numpy.empty(nbytes, 'B')
         elif array:
             return array.array('B', [0]) * nbytes
@@ -171,6 +173,19 @@ def pingpong(MPI, args=None, verbose=True):
             print(message, flush=True)
 
     return result
+
+
+class ComplexObject:
+
+    def __init__(self, nbytes, numpy):
+        """Initialize object with a list of numpy arrays."""
+        self.buffers = []
+        total = 0
+        while total < nbytes:
+            left = nbytes - total
+            size = 8192 if left > 8192 else left
+            self.buffers.append(numpy.empty(size, 'B'))
+            total += size
 
 
 if __name__ == '__main__':
