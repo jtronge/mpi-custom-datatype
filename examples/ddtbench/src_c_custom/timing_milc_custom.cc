@@ -32,8 +32,8 @@ static int state_cb(void *context, const void *buf, MPI_Count count, void **stat
 }
 
 static int query_cb(void *state, const void *buf, MPI_Count count, MPI_Count *packed_size) {
-  field_info_t *info = (field_info_t*)state;
-  *packed_size = info->DIM5*2*info->DIM3/2 * info->DIM2 * 6 * sizeof(float);
+  pack_info_t *info = (pack_info_t*)state;
+  *packed_size = info->DIM5*2*(info->DIM3/2) * info->DIM2 * 6 * sizeof(float);
   return MPI_SUCCESS;
 }
 
@@ -47,16 +47,17 @@ static int pack_cb(
   MPI_Count pos = 0;
   assert(offset == 0); // assume all packed at once
   pack_info_t *info = (pack_info_t*)state;
-  float *__restrict__ buffer = (float*)buf;
+  const float *__restrict__ buffer = (const float*)buf;
   float *__restrict__ dst = (float*)dst_v;
+  printf("MILC pack %zu offset %zu\n", dst_size, offset);
 
   for( int k=0 ; k<info->DIM5 ; k++ ) {
     for( int l=0 ; l<info->DIM4 ; l+=info->DIM4/2 ) {
       /* large chunk memcpy */
-      memcpy(&buffer[pos],
-             &dst[idx5D(0,0,0,l,k,6,info->DIM2,info->DIM3,info->DIM4)],
+      memcpy(&dst[pos],
+             &buffer[idx5D(0,0,0,l,k,6,info->DIM2,info->DIM3,info->DIM4)],
              info->DIM3/2 * info->DIM2 * 6 * sizeof(float));
-      pos += info->DIM3/2 * info->DIM2 * 6;
+      pos += (info->DIM3/2) * info->DIM2 * 6;
     }
   }
   *used = pos*sizeof(float);
@@ -72,19 +73,18 @@ static int unpack_cb(
   MPI_Count pos = 0;
   assert(offset == 0); // assume all packed at once
   pack_info_t *info = (pack_info_t*)state;
-  const float *__restrict__ buffer = (const float*)buf;
-  float *__restrict__ dst = (float*)dst_v;
+  float *__restrict__ buffer = (float*)buf;
+  const float *__restrict__ src = (const float*)src_v;
 
   for( int k=0 ; k<info->DIM5 ; k++ ) {
     for( int l=0 ; l<info->DIM4 ; l+=info->DIM4/2 ) {
       /* large chunk memcpy */
-      memcpy(&dst[idx5D(0,0,0,l,k,6,info->DIM2,info->DIM3,info->DIM4)],
-             &buffer[pos],
+      memcpy(&buffer[idx5D(0,0,0,l,k,6,info->DIM2,info->DIM3,info->DIM4)],
+             &src[pos],
              info->DIM3/2 * info->DIM2 * 6 * sizeof(float));
       pos += info->DIM3/2 * info->DIM2 * 6;
     }
   }
-  *used = pos*sizeof(float);
   return MPI_SUCCESS;
 }
 
@@ -182,8 +182,8 @@ void timing_milc_su3_zdown_custom( int DIM2, int DIM3, int DIM4, int DIM5, int o
   };
 
   MPI_Datatype type;
-  MPI_Type_create_custom(state_cb, query_cb, pack_cb, unpack_cb, NULL,
-                         NULL, NULL, &info, 0, &type);
+  MPI_Type_create_custom(state_cb, NULL, query_cb, pack_cb, unpack_cb,
+                         NULL, NULL, &info, 1, &type);
 
   MPI_Status status;
 
