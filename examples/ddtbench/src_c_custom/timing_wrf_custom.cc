@@ -13,8 +13,7 @@
 #include <mpi.h>
 
 #define itag 0
-
-#define USE_MEMCPY 1
+//#define USE_MEMCPY 1
 
 static int myrank;
 //#define EXTRA_TIMING(x) do { if (myrank == 0) timing_record(x); } while (0)
@@ -45,7 +44,6 @@ struct pack_info_t {
 
 static MPI_Count pack(pack_info_t *info, const int ie, const int is)
 {
-  ssize_t size = info->buf_size;
   //const int ie = info->ie, is = info->is;
   const int ic = ie - is;
   const int je = info->je, js = info->js;
@@ -80,8 +78,6 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
         memcpy(&buffer[counter], array2Ds[m]+idx2D(is,k,dim1), c*sizeof(float));
         counter += c;
 #endif // USE_MEMCPY
-        size -= unit_pack_size;
-        assert(size >= 0);
       }
     }
     for(int m=0 ; m<info->number_3D ; m++ ) {
@@ -102,8 +98,6 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
           memcpy(&buffer[counter], (array3Ds[m]+idx3D(is,l,k,dim1,dim2)), c*sizeof(float));
           counter += c;
 #endif // USE_MEMCPY
-          size -= unit_pack_size;
-          assert(size >= 0);
         }
       }
     }
@@ -126,13 +120,11 @@ static MPI_Count pack(pack_info_t *info, const int ie, const int is)
             memcpy(&buffer[counter], (array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), c*sizeof(float));
             counter += c;
 #endif // USE_MEMCPY
-            size -= unit_pack_size;
-            assert(size >= 0);
           }
         }
       }
     }
-  return info->buf_size - size;
+  return counter*sizeof(float);
 }
 
 
@@ -234,7 +226,6 @@ static coro::generator<MPI_Count> pack_coro(pack_info_t *info, const int ie, con
 
 static MPI_Count unpack(pack_info_t *info)
 {
-  ssize_t size = info->buf_size;
   /* the unit packing size */
   const int ie = info->ie, is = info->is;
   const int je = info->je, js = info->js;
@@ -262,8 +253,6 @@ static MPI_Count unpack(pack_info_t *info)
         memcpy(array2Ds[m]+idx2D(is,k,dim1), &buffer[counter], c*sizeof(float));
         counter += c;
 #endif // USE_MEMCPY
-        size -= unit_pack_size;
-        assert(size >= 0);
       }
     }
     for(int m=0 ; m<info->number_3D ; m++ ) {
@@ -278,9 +267,6 @@ static MPI_Count unpack(pack_info_t *info)
           memcpy((array3Ds[m]+idx3D(is,l,k,dim1,dim2)), &buffer[counter], c*sizeof(float));
           counter += c;
 #endif // USE_MEMCPY
-
-          size -= unit_pack_size;
-          assert(size >= 0);
         }
       }
     }
@@ -297,14 +283,12 @@ static MPI_Count unpack(pack_info_t *info)
             memcpy((array4Ds[m]+idx4D(is,n,l,k,dim1,dim2,dim3)), &buffer[counter], c*sizeof(float));
             counter += c;
 #endif // USE_MEMCPY
-            size -= unit_pack_size;
-            assert(size >= 0);
           }
         }
       }
     }
 
-  return info->buf_size - size;
+  return counter*sizeof(float);
 }
 
 
