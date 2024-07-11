@@ -50,7 +50,6 @@ static int pack_cb(
   pack_info_t *info = (pack_info_t*)state;
   const float *__restrict__ buffer = (const float*)buf;
   float *__restrict__ dst = (float*)dst_v;
-  printf("MILC pack %zu offset %zu\n", dst_size, offset);
 
   for( int k=0 ; k<info->DIM5 ; k++ ) {
     for( int l=0 ; l<info->DIM4 ; l+=info->DIM4/2 ) {
