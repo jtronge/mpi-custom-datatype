@@ -6,7 +6,7 @@ use crate::{Status, System};
 use crate::request::Request;
 use crate::datatype::{PackMethod, UnpackMethod};
 
-pub trait Message {
+pub(crate) trait Message {
     /// Progress the message and return the status.
     unsafe fn progress(&mut self, system: &mut System) -> Status;
 }
