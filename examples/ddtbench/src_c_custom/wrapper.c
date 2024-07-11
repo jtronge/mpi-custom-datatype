@@ -119,6 +119,7 @@ void wrapper_timing_milc_su3_zdown( int DIM2, int DIM3, int DIM4, int DIM5, int 
   }
 
   timing_milc_su3_zdown_custom( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
+  timing_milc_su3_zdown_custom_region( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
   timing_milc_su3_zdown_manual( DIM2, DIM3, DIM4, DIM5, outer_loop, inner_loop, &correct_flag, &typesize, &testname[0], local_communicator );
 
