@@ -1,5 +1,6 @@
 #!/bin/sh
 
+export UCX_NET_DEVICES="mlx5_0:1"
 export ADDITIONAL_ARGS="-m 1048576 -n 1073741824"
 
 mpirun -np 2 -N 1 -- python3 ./examples/pingpong.py $ADDITIONAL_ARGS \

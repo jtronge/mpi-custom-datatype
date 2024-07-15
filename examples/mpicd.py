@@ -83,7 +83,7 @@ def region_fn(
         b = ffi.from_buffer(bufs[i])
         reg_lens[i] = len(b)
         reg_bases[i] = b
-        types[i] = lib.MPI_BYTE
+        reg_types[i] = lib.MPI_BYTE
     return lib.MPI_SUCCESS
 
 
