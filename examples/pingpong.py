@@ -59,6 +59,7 @@ def pingpong(MPI, args=None, verbose=True):
                         dest="print_header", default=True)
     parser.add_argument("--no-stats", action="store_false",
                         dest="print_stats", default=True)
+    parser.add_argument("--complex-object-size", type=int, default=1024**2)
     options = parser.parse_args(args)
 
     import statistics
@@ -106,7 +107,7 @@ def pingpong(MPI, args=None, verbose=True):
 
     def allocate(nbytes):  # pragma: no cover
         if options.array == 'complex-object':
-            return ComplexObject(nbytes, numpy)
+            return ComplexObject(nbytes, options.complex_object_size, numpy)
         elif numpy:
             return numpy.empty(nbytes, 'B')
         elif array:
@@ -177,13 +178,13 @@ def pingpong(MPI, args=None, verbose=True):
 
 class ComplexObject:
 
-    def __init__(self, nbytes, numpy):
+    def __init__(self, nbytes, complex_object_size, numpy):
         """Initialize object with a list of numpy arrays."""
         self.buffers = []
         total = 0
         while total < nbytes:
             left = nbytes - total
-            size = 1024**2 if left > 1024**2 else left
+            size = complex_object_size if left > complex_object_size else left
             self.buffers.append(numpy.empty(size, 'B'))
             total += size
 
