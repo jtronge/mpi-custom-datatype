@@ -9,7 +9,7 @@ def load_and_plot(fnames, title):
     for method in [
         'baseline',
         'pickle-oob-cdt',
-        # 'pickle-oob',
+        'pickle-oob',
         'pickle-basic',
     ]:
         size, data = np.genfromtxt(
@@ -23,7 +23,7 @@ def load_and_plot(fnames, title):
     formats = {
         'baseline': '.-r',
         'pickle-oob-cdt': '+:b',
-        'pickle-oob': '.:b',
+        'pickle-oob': '.-.g',
         'pickle-basic': '>-b',
     }
 
@@ -60,3 +60,13 @@ if __name__ == '__main__':
                    'pickle-oob': 'results/python-pingpong/two-node/pickle_oob.out',
                    'pickle-basic': 'results/python-pingpong/two-node/pickle_basic.out'},
                   title='pingpong test (Python) - two node')
+    load_and_plot({'baseline': 'results/python-pingpong-complex-object-1mib/two-node/baseline.out',
+                   'pickle-oob-cdt': 'results/python-pingpong-complex-object-1mib/two-node/pickle_oob_cdt.out',
+                   'pickle-oob': 'results/python-pingpong-complex-object-1mib/two-node/pickle_oob.out',
+                   'pickle-basic': 'results/python-pingpong-complex-object-1mib/two-node/pickle_basic.out'},
+                  title='pingpong test (Python) - complex object - 1 MiB buffers')
+    load_and_plot({'baseline': 'results/python-pingpong-complex-object-16mib/two-node/baseline.out',
+                   'pickle-oob-cdt': 'results/python-pingpong-complex-object-16mib/two-node/pickle_oob_cdt.out',
+                   'pickle-oob': 'results/python-pingpong-complex-object-16mib/two-node/pickle_oob.out',
+                   'pickle-basic': 'results/python-pingpong-complex-object-16mib/two-node/pickle_basic.out'},
+                  title='pingpong test (Python) - complex object - 16 MiB buffers')
