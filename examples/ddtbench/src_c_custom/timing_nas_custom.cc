@@ -71,10 +71,10 @@ int region_query_cb(
   MPI_Count count,
   // Number of regions
   MPI_Count region_count,
-  // Lengths of each region (out)
-  MPI_Count reg_lens[],
   // Pointers to each region (out)
   void *reg_bases[],
+  // Lengths of each region (out)
+  MPI_Count reg_lens[],
   // Types for each region
   MPI_Datatype reg_types[])
 {

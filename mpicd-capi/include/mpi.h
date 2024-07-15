@@ -120,12 +120,12 @@ typedef int (MPI_Type_custom_region_function)(
     MPI_Count count,
     // Number of regions
     MPI_Count region_count,
-    // Lengths of each region (out)
-    MPI_Count reg_lens[],
     // Pointers to each region (out)
     void *reg_bases[],
+    // Lengths of each region (out)
+    MPI_Count reg_lens[],
     // Types for each region
-    MPI_Datatype types[]
+    MPI_Datatype reg_types[]
 );
 typedef int (MPI_Type_custom_state_free_function)(void *state);
 

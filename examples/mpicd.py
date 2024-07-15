@@ -73,9 +73,9 @@ def region_fn(
     buf: 'void* ',
     count: 'MPI_Count',
     region_count: 'MPI_Count',
-    reg_lens: 'MPI_Count[]',
     reg_bases: 'void*[]',
-    types: 'MPI_Datatype[]',
+    reg_lens: 'MPI_Count[]',
+    reg_types: 'MPI_Datatype[]',
 ):
     assert count == 1
     bufs = ffi.from_handle(buf)

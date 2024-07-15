@@ -81,8 +81,8 @@ pub type RegionFn = Option<
         buf: *mut c_void,
         count: Count,
         region_count: Count,
-        reg_lens: *mut Count,
         reg_bases: *mut *mut c_void,
+        reg_lens: *mut Count,
         types: *mut Datatype,
     ) -> c_int
 >;

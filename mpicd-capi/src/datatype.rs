@@ -129,8 +129,8 @@ impl CustomPackMethod {
             self.ptr as *mut _,
             self.count,
             region_count,
-            reg_lens.as_mut_ptr(),
             reg_bases.as_mut_ptr(),
+            reg_lens.as_mut_ptr(),
             types.as_mut_ptr(),
         );
         if ret != 0 {
