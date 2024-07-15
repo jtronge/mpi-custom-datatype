@@ -183,7 +183,7 @@ class ComplexObject:
         total = 0
         while total < nbytes:
             left = nbytes - total
-            size = 8192 if left > 8192 else left
+            size = 1024**2 if left > 1024**2 else left
             self.buffers.append(numpy.empty(size, 'B'))
             total += size
 
