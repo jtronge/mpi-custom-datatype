@@ -65,6 +65,16 @@ if __name__ == '__main__':
                    'pickle-oob': 'results/python-pingpong-complex-object-1mib/two-node/pickle_oob.out',
                    'pickle-basic': 'results/python-pingpong-complex-object-1mib/two-node/pickle_basic.out'},
                   title='pingpong test (Python) - complex object - 1 MiB buffers')
+    load_and_plot({'baseline': 'results/python-pingpong-complex-object-2mib/two-node/baseline.out',
+                   'pickle-oob-cdt': 'results/python-pingpong-complex-object-2mib/two-node/pickle_oob_cdt.out',
+                   'pickle-oob': 'results/python-pingpong-complex-object-2mib/two-node/pickle_oob.out',
+                   'pickle-basic': 'results/python-pingpong-complex-object-2mib/two-node/pickle_basic.out'},
+                  title='pingpong test (Python) - complex object - 2 MiB buffers')
+    load_and_plot({'baseline': 'results/python-pingpong-complex-object-8mib/two-node/baseline.out',
+                   'pickle-oob-cdt': 'results/python-pingpong-complex-object-8mib/two-node/pickle_oob_cdt.out',
+                   'pickle-oob': 'results/python-pingpong-complex-object-8mib/two-node/pickle_oob.out',
+                   'pickle-basic': 'results/python-pingpong-complex-object-8mib/two-node/pickle_basic.out'},
+                  title='pingpong test (Python) - complex object - 8 MiB buffers')
     load_and_plot({'baseline': 'results/python-pingpong-complex-object-16mib/two-node/baseline.out',
                    'pickle-oob-cdt': 'results/python-pingpong-complex-object-16mib/two-node/pickle_oob_cdt.out',
                    'pickle-oob': 'results/python-pingpong-complex-object-16mib/two-node/pickle_oob.out',
