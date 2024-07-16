@@ -1,6 +1,6 @@
 //! Request object.
 use mpicd_ucx_sys::{
-    rust_ucp_dt_make_contig, rust_ucp_dt_make_iov, ucp_dt_iov_t, ucp_worker_progress,
+    rust_ucp_dt_make_iov, ucp_dt_iov_t, ucp_worker_progress,
 };
 use crate::{Status, System};
 use crate::request::Request;
@@ -98,6 +98,7 @@ impl Message for PackSendMessage {
             let count = iovdata.len();
             let _ = self.iovdata.insert(iovdata);
 
+/*
             if count == 1 {
                 // Submit as contiguous.
                 let iovdata = self.iovdata.as_ref().expect("missing iovec data");
@@ -109,15 +110,18 @@ impl Message for PackSendMessage {
                     self.tag,
                 ));
             } else {
-                // Submit the request with both packed and memory region data.
-                let _ = self.req.insert(Request::send_nb(
-                    system.endpoints[self.dest],
-                    self.iovdata.as_ref().expect("missing iovec data").as_ptr() as *const _,
-                    count,
-                    rust_ucp_dt_make_iov(),
-                    self.tag,
-                ));
+*/
+            // Submit the request with both packed and memory region data.
+            let _ = self.req.insert(Request::send_nb(
+                system.endpoints[self.dest],
+                self.iovdata.as_ref().expect("missing iovec data").as_ptr() as *const _,
+                count,
+                rust_ucp_dt_make_iov(),
+                self.tag,
+            ));
+/*
             }
+*/
             Status::InProgress
         }
     }
@@ -214,20 +218,21 @@ impl Message for PackRecvMessage {
 
 /// Send message for contiguous data.
 pub(crate) struct ContiguousSendMessage {
-    ptr: *const u8,
-    count: usize,
     dest: usize,
     tag: u64,
+    iovdata: ucp_dt_iov_t,
     req: Option<Request>,
 }
 
 impl ContiguousSendMessage {
     pub(crate) fn new(ptr: *const u8, count: usize, dest: i32, tag: u64) -> ContiguousSendMessage {
         ContiguousSendMessage {
-            ptr,
-            count,
             dest: dest as usize,
             tag,
+            iovdata: ucp_dt_iov_t {
+                buffer: ptr as *mut _,
+                length: count,
+            },
             req: None,
         }
     }
@@ -242,9 +247,9 @@ impl Message for ContiguousSendMessage {
         } else {
             let _ = self.req.insert(Request::send_nb(
                 system.endpoints[self.dest],
-                self.ptr,
-                self.count,
-                rust_ucp_dt_make_contig(1),
+                (&self.iovdata as *const ucp_dt_iov_t) as *const _,
+                1,
+                rust_ucp_dt_make_iov(),
                 self.tag,
             ));
             Status::InProgress
@@ -254,18 +259,19 @@ impl Message for ContiguousSendMessage {
 
 /// Send message for contiguous data.
 pub(crate) struct ContiguousRecvMessage {
-    ptr: *mut u8,
-    count: usize,
     tag: u64,
+    iovdata: ucp_dt_iov_t,
     req: Option<Request>,
 }
 
 impl ContiguousRecvMessage {
     pub(crate) fn new(ptr: *mut u8, count: usize, tag: u64) -> ContiguousRecvMessage {
         ContiguousRecvMessage {
-            ptr,
-            count,
             tag,
+            iovdata: ucp_dt_iov_t {
+                buffer: ptr as *mut _,
+                length: count,
+            },
             req: None,
         }
     }
@@ -280,9 +286,9 @@ impl Message for ContiguousRecvMessage {
         } else {
             let _ = self.req.insert(Request::recv_nb(
                 system.worker,
-                self.ptr,
-                self.count,
-                rust_ucp_dt_make_contig(1),
+                (&mut self.iovdata as *mut ucp_dt_iov_t) as *mut _,
+                1,
+                rust_ucp_dt_make_iov(),
                 self.tag,
             ));
             Status::InProgress
