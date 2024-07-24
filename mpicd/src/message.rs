@@ -21,6 +21,9 @@ pub(crate) struct PackSendMessage {
     /// Message tag.
     tag: u64,
 
+    /// Packed size of the message buffer.
+    packed_size: usize,
+
     /// Packed message buffer.
     packed_buffer: Vec<u8>,
 
@@ -37,8 +40,8 @@ pub(crate) struct PackSendMessage {
 impl PackSendMessage {
     pub(crate) unsafe fn new(pack_method: Box<dyn PackMethod>, dest: i32, tag: u64) -> PackSendMessage {
         // Allocate the packed buffer if necessary.
-        let packed_buffer = match pack_method.packed_size() {
-            Ok(size) => vec![0; size],
+        let (packed_size, packed_buffer) = match pack_method.packed_size() {
+            Ok(packed_size) => (packed_size, Vec::with_capacity(packed_size)),
             Err(err) => panic!("Error occured while getting the packed size of a type: {:?}", err),
         };
 
@@ -46,6 +49,7 @@ impl PackSendMessage {
             pack_method,
             dest: dest as usize,
             tag,
+            packed_size,
             packed_buffer,
             offset: 0,
             iovdata: None,
@@ -60,9 +64,9 @@ impl Message for PackSendMessage {
             // Already have a request, just need to wait on it.
             ucp_worker_progress(system.worker);
             req.status()
-        } else if self.offset < self.packed_buffer.len() {
+        } else if self.offset < self.packed_size {
             // Pack the buffer all at once.
-            let dst_size = self.packed_buffer.len();
+            let dst_size = self.packed_size;
             let dst = self.packed_buffer.as_mut_ptr().offset(self.offset as isize);
             let used = self.pack_method
                 .pack(self.offset, dst, dst_size)
@@ -81,10 +85,10 @@ impl Message for PackSendMessage {
             let mut iovdata = vec![];
             // TODO: Must be careful about moving the data. Perhaps this
             // should be Pinned in some way?
-            if self.packed_buffer.len() > 0 {
+            if self.packed_size > 0 {
                 iovdata.push(ucp_dt_iov_t {
                     buffer: self.packed_buffer.as_mut_ptr() as *mut _,
-                    length: self.packed_buffer.len(),
+                    length: self.packed_size,
                 });
             }
 
@@ -118,6 +122,8 @@ impl Message for PackSendMessage {
                     self.tag,
                 ));
             }
+
+            self.packed_buffer.set_len(self.packed_size);
             Status::InProgress
         }
     }
@@ -129,6 +135,9 @@ pub(crate) struct PackRecvMessage {
 
     /// Message tag.
     tag: u64,
+
+    /// Packed data size.
+    packed_size: usize,
 
     /// Packed message buffer.
     packed_buffer: Vec<u8>,
@@ -143,14 +152,15 @@ pub(crate) struct PackRecvMessage {
 impl PackRecvMessage {
     pub(crate) unsafe fn new(unpack_method: Box<dyn UnpackMethod>, tag: u64) -> PackRecvMessage {
         // Allocate the packed buffer if necessary.
-        let packed_buffer = match unpack_method.packed_size() {
-            Ok(size) => vec![0; size],
+        let (packed_size, packed_buffer) = match unpack_method.packed_size() {
+            Ok(packed_size) => (packed_size, Vec::with_capacity(packed_size)),
             Err(err) => panic!("Error occured while getting the packed size of a type: {:?}", err),
         };
 
         PackRecvMessage {
             unpack_method,
             tag,
+            packed_size,
             packed_buffer,
             iovdata: None,
             req: None,
@@ -184,10 +194,10 @@ impl Message for PackRecvMessage {
             let mut iovdata = vec![];
             // TODO: Must be careful about moving the data. Perhaps this
             // should be Pinned in some way?
-            if self.packed_buffer.len() > 0 {
+            if self.packed_size > 0 {
                 iovdata.push(ucp_dt_iov_t {
                     buffer: self.packed_buffer.as_mut_ptr() as *mut _,
-                    length: self.packed_buffer.len(),
+                    length: self.packed_size,
                 });
             }
 
@@ -207,6 +217,9 @@ impl Message for PackRecvMessage {
                 rust_ucp_dt_make_iov(),
                 self.tag,
             ));
+
+            // Set the size since it'll be filled in by the recv request.
+            self.packed_buffer.set_len(self.packed_size);
             Status::InProgress
         }
     }

@@ -120,10 +120,10 @@ impl CustomPackMethod {
         }
 
         let regionfn = self.custom_datatype.vtable.regionfn.expect("missing memory region function");
-        let mut reg_lens = vec![0; region_count];
-        let mut reg_bases = vec![std::ptr::null_mut(); region_count];
+        let mut reg_bases = Vec::with_capacity(region_count);
+        let mut reg_lens = Vec::with_capacity(region_count);
         // Ignore the types for now.
-        let mut types = vec![consts::BYTE; region_count];
+        let mut types = Vec::with_capacity(region_count);
         let ret = regionfn(
             self.state,
             self.ptr as *mut _,
@@ -133,6 +133,10 @@ impl CustomPackMethod {
             reg_lens.as_mut_ptr(),
             types.as_mut_ptr(),
         );
+        // NOTE: This assumes that the callback has initialized all three vectors.
+        reg_bases.set_len(region_count);
+        reg_lens.set_len(region_count);
+        types.set_len(region_count);
         if ret != 0 {
             return Err(DatatypeError::RegionError);
         }
