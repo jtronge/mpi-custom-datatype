@@ -52,7 +52,7 @@ def pingpong(MPI, args=None, verbose=True):
     parser.add_argument("--skip-huge", type=int,
                         dest="skip_huge", default=1)
     parser.add_argument("--loop-huge", type=int,
-                        dest="loop_huge", default=10)
+                        dest="loop_huge", default=100)
     parser.add_argument("--huge-size", type=int,
                         dest="huge_size", default=1 << 20)
     parser.add_argument("--no-header", action="store_false",
