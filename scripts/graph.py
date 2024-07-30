@@ -65,13 +65,18 @@ LABELS = {
     'rsmpi-struct-simple-no-gap': 'rsmpi-derived-datatype',
 }
 
-def basic_graph(results_path, names, title, benchmark, y_bounds=None):
+def basic_graph(results_path, names, title, benchmark, y_bounds=None, max_x=None):
     fig, ax = plt.subplots()
 
-    all_values = []
     for name in names:
         sizes, values, err = load_average_results(results_path, name)
-        all_values.append(values)
+        # Graph up to max_x value, if specified.
+        if max_x is not None:
+            sizes = [sz for sz in sizes if sz <= max_x]
+            print(len(sizes))
+            values = values[:len(sizes)]
+            print(values.shape)
+            err = err[0][:len(sizes)], err[1][:len(sizes)]
         ax.errorbar(x=sizes, y=values, yerr=err, fmt=FMTS[name], label=LABELS[name])
 
     ax.set_title(title)
@@ -127,7 +132,7 @@ def latency_double_vec(_args):
 def bw_struct_vec(_args):
     """Graph banwdith for the struct-vec type."""
     basic_graph('results/bw_struct-vec', ['custom', 'packed', 'rsmpi-struct-vec'],
-                'Bandwidth (struct-vec)', 'bw', y_bounds=(10, 10**4))
+                'Bandwidth (struct-vec)', 'bw', max_x=2**20)
 
 
 def latency_struct_vec(_args):
