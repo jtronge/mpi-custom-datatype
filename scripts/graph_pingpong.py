@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def load_and_plot(fnames, title, x_start=0, x_label='size (bytes)'):
+def load_and_plot(fnames, title, x_start=0, x_label='size (bytes)', y_min=None):
     results = {}
     for method in [
         'baseline',
@@ -23,12 +23,12 @@ def load_and_plot(fnames, title, x_start=0, x_label='size (bytes)'):
     formats = {
         'baseline': '+:k',
         'pickle-oob-cdt': 'o-r',
-        'pickle-oob': '.-.g',
+        'pickle-oob': 's-g',
         'pickle-basic': '>-b',
     }
 
     labels = {
-        'baseline': 'baseline',
+        'baseline': 'roofline',
         'pickle-oob-cdt': 'pickle-oob-cdt',
         'pickle-oob': 'pickle-oob',
         'pickle-basic': 'pickle-basic',
@@ -44,12 +44,14 @@ def load_and_plot(fnames, title, x_start=0, x_label='size (bytes)'):
         ax.errorbar(size[x_start:], bw[x_start:], yerr=yerr[x_start:],
                     fmt=formats[name], label=labels[name])
     ax.set_title(title)
-    ax.set_xlabel('size (bytes)')
+    if y_min is not None:
+        ax.set_ylim(ymin=y_min)
+    ax.set_xlabel(x_label)
     ax.set_ylabel('bandwidth (MB/s)')
     ax.grid(which='both')
     ax.set_xscale('log', base=2)
     ax.set_yscale('log')
-    ax.legend()
+    ax.legend(framealpha=1.0)
     plt.show()
 
 
@@ -58,12 +60,12 @@ if __name__ == '__main__':
                    'pickle-oob-cdt': 'results/python-pingpong-complex-object-128kib/two-node/pickle_oob_cdt.out',
                    'pickle-oob': 'results/python-pingpong-complex-object-128kib/two-node/pickle_oob.out',
                    'pickle-basic': 'results/python-pingpong-complex-object-128kib/two-node/pickle_basic.out'},
-                  title='pingpong test (Python) - complex object', x_label='total size (bytes)')
+                  title='pingpong test (Python) - complex object', x_label='total size (bytes)', y_min=2*10**2)
     load_and_plot({'baseline': 'results/python-pingpong/two-node/baseline.out',
                    'pickle-oob-cdt': 'results/python-pingpong/two-node/pickle_oob_cdt.out',
                    'pickle-oob': 'results/python-pingpong/two-node/pickle_oob.out',
                    'pickle-basic': 'results/python-pingpong/two-node/pickle_basic.out'},
-                  title='pingpong test (Python)', x_start=15)
+                  title='pingpong test (Python)', x_start=15, y_min=2*10**2)
     # load_and_plot({'baseline': 'results/python-pingpong-complex-object-1mib/two-node/baseline.out',
     #                'pickle-oob-cdt': 'results/python-pingpong-complex-object-1mib/two-node/pickle_oob_cdt.out',
     #                'pickle-oob': 'results/python-pingpong-complex-object-1mib/two-node/pickle_oob.out',

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="187.30817mm"
+   height="223.58524mm"
+   viewBox="0 0 187.30817 223.58523"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25)"
+   sodipodi:docname="implementation.svg"
+   inkscape:export-filename="implementation.png"
+   inkscape:export-xdpi="255.00067"
+   inkscape:export-ydpi="255.00067"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.5946522"
+     inkscape:cx="294.28967"
+     inkscape:cy="427.98127"
+     inkscape:window-width="1512"
+     inkscape:window-height="832"
+     inkscape:window-x="0"
+     inkscape:window-y="38"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showguides="true" />
+  <defs
+     id="defs1">
+    <rect
+       x="188.34538"
+       y="356.51093"
+       width="290.92636"
+       height="68.947868"
+       id="rect2" />
+    <rect
+       x="188.34538"
+       y="356.51093"
+       width="290.92636"
+       height="68.947868"
+       id="rect4" />
+    <rect
+       x="188.34538"
+       y="356.51093"
+       width="369.96417"
+       height="67.266212"
+       id="rect6" />
+    <rect
+       x="188.34538"
+       y="356.51093"
+       width="290.92636"
+       height="68.947868"
+       id="rect8" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-12.013325,-5.3392555)">
+    <rect
+       style="fill:#0066ff;stroke-width:2"
+       id="rect1"
+       width="162.84729"
+       height="43.603928"
+       x="24.026649"
+       y="68.0755" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,13.901098,-11.052065)"
+       id="text1"
+       style="font-size:48px;white-space:pre;shape-inside:url(#rect2);display:inline;fill:#ffffff;stroke-width:7.55906"
+       x="127.47656"
+       y="0"><tspan
+         x="202.11328"
+         y="400.30357"
+         id="tspan4"><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan1">mpicd-capi</tspan></tspan></text>
+    <rect
+       style="fill:#0066ff;stroke-width:2"
+       id="rect3"
+       width="162.84729"
+       height="43.603928"
+       x="24.026649"
+       y="119.64263" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,13.901098,40.515049)"
+       id="text3"
+       style="font-size:48px;white-space:pre;shape-inside:url(#rect4);display:inline;fill:#ffffff;stroke-width:7.55906"
+       x="68.003906"
+       y="0"><tspan
+         x="261.46875"
+         y="400.30357"
+         id="tspan8"><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan6">mpicd</tspan></tspan></text>
+    <rect
+       style="fill:#000000;stroke-width:2"
+       id="rect5"
+       width="162.84729"
+       height="43.603928"
+       x="24.026649"
+       y="171.629" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,5.4344287,92.501412)"
+       id="text5"
+       style="font-size:48px;white-space:pre;shape-inside:url(#rect6);display:inline;fill:#ffffff;stroke-width:7.55906"
+       x="68.003906"
+       y="0"><tspan
+         x="198.6709"
+         y="400.30357"
+         id="tspan10"><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan9">mpicd-ucx-sys</tspan></tspan></text>
+    <rect
+       style="fill:#d40000;stroke-width:2"
+       id="rect7"
+       width="162.84729"
+       height="43.603928"
+       x="24.026649"
+       y="16.017759" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,13.901098,-63.109806)"
+       id="text7"
+       style="font-size:48px;white-space:pre;shape-inside:url(#rect8);display:inline;fill:#ffffff;stroke-width:7.55906"
+       x="127.47656"
+       y="0"><tspan
+         x="201.60938"
+         y="400.30357"
+         id="tspan12"><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan11">Application</tspan></tspan></text>
+  </g>
+</svg>

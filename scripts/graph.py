@@ -59,7 +59,7 @@ FMTS = {
 LABELS = {
     'custom': 'custom',
     'packed': 'manual-pack',
-    'rsmpi': 'rsmpi-bytes-baseline',
+    'rsmpi': 'rsmpi-bytes-roofline',
     'rsmpi-struct-vec': 'rsmpi-derived-datatype',
     'rsmpi-struct-simple': 'rsmpi-derived-datatype',
     'rsmpi-struct-simple-no-gap': 'rsmpi-derived-datatype',
@@ -110,7 +110,7 @@ LATENCY_SIZE_COMPARE_RESULTS = [
     ('manual-pack-256b', 'results/latency_double-vec/packed-256', '<:g'),
     ('manual-pack-1k', 'results/latency_double-vec/packed-1024', '+:g'),
     ('manual-pack-4k', 'results/latency_double-vec/packed-4096', '3:g'),
-    ('rsmpi-bytes-baseline', 'results/latency_double-vec/rsmpi-bytes', 'H-.b'),
+    ('rsmpi-bytes-roofline', 'results/latency_double-vec/rsmpi-bytes', 'H-.b'),
 ]
 
 def latency_double_vec(_args):
